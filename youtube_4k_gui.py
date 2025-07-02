@@ -387,6 +387,102 @@ class YouTube4KCheckerGUI:
             
             self.status_label.config(text="Video removed from list")
     
+    def on_tree_click(self, event):
+        """Handle left-click on treeview to toggle checkboxes"""
+        item = self.video_tree.identify('item', event.x, event.y)
+        column = self.video_tree.identify('column', event.x, event.y)
+        
+        # If clicked on the checkbox column
+        if item and column == '#1':  # First column (Check)
+            self.toggle_checkbox(item)
+    
+    def toggle_checkbox(self, item):
+        """Toggle checkbox state for an item"""
+        if not self.video_tree.exists(item):
+            return
+            
+        values = list(self.video_tree.item(item, 'values'))
+        current_check = values[0]
+        
+        # Toggle between checked and unchecked
+        if current_check == '☑️':
+            values[0] = '☐'
+        else:
+            values[0] = '☑️'
+        
+        self.video_tree.item(item, values=values)
+        self.update_copy_button_state()
+    
+    def update_copy_button_state(self):
+        """Update copy button state based on checked items"""
+        has_checked = any(self.video_tree.item(item, 'values')[0] == '☑️' 
+                         for item in self.video_tree.get_children())
+        
+        if has_checked:
+            self.copy_btn.config(state='normal')
+        else:
+            self.copy_btn.config(state='disabled')
+    
+    def check_all_videos(self):
+        """Check all videos in the list"""
+        for item in self.video_tree.get_children():
+            values = list(self.video_tree.item(item, 'values'))
+            values[0] = '☑️'
+            self.video_tree.item(item, values=values)
+        self.update_copy_button_state()
+    
+    def uncheck_all_videos(self):
+        """Uncheck all videos in the list"""
+        for item in self.video_tree.get_children():
+            values = list(self.video_tree.item(item, 'values'))
+            values[0] = '☐'
+            self.video_tree.item(item, values=values)
+        self.update_copy_button_state()
+    
+    def check_4k_only(self):
+        """Check only videos that have 4K available"""
+        for item in self.video_tree.get_children():
+            values = list(self.video_tree.item(item, 'values'))
+            status = values[5]  # Status column
+            if '✅ 4K Available!' in status:
+                values[0] = '☑️'
+            else:
+                values[0] = '☐'
+            self.video_tree.item(item, values=values)
+        self.update_copy_button_state()
+    
+    def copy_checked_urls(self):
+        """Copy URLs of checked videos to clipboard"""
+        checked_urls = []
+        
+        for item in self.video_tree.get_children():
+            values = self.video_tree.item(item, 'values')
+            is_checked = values[0] == '☑️'
+            
+            if is_checked:
+                # Get video ID from tags
+                video_id = self.video_tree.item(item)['tags'][0] if self.video_tree.item(item)['tags'] else None
+                if video_id:
+                    url = f"https://www.youtube.com/watch?v={video_id}"
+                    checked_urls.append(url)
+        
+        if not checked_urls:
+            messagebox.showwarning("Warning", "No videos are checked!")
+            return
+        
+        # Join URLs with newlines
+        urls_text = '\n'.join(checked_urls)
+        
+        try:
+            # Copy to clipboard
+            self.root.clipboard_clear()
+            self.root.clipboard_append(urls_text)
+            self.root.update()
+            
+            messagebox.showinfo("Success", f"✅ {len(checked_urls)} video URLs copied to clipboard!\n\nYou can now paste them anywhere.")
+        except Exception as e:
+            messagebox.showerror("Error", f"URLs could not be copied: {str(e)}")
+    
     def on_entry_change(self, event=None):
         """Entry değeri değiştiğinde slider'ı güncelle"""
         try:
@@ -417,9 +513,9 @@ class YouTube4KCheckerGUI:
         """İşlemi durdurmak için flag'i ayarla"""
         self.stop_requested = True
         self.status_label.config(text="⏹️ Process stopping...")
-        # Copy butonunu aktif et (eğer 4K video bulunduysa)
+        # Check 4K Only butonunu aktif et (eğer 4K video bulunduysa)
         if self.found_4k_videos:
-            self.copy_btn.config(state='normal')
+            self.check_4k_only_btn.config(state='normal')
     
     def get_playlist_info(self, playlist_id):
         """Playlist bilgilerini al"""
@@ -586,8 +682,9 @@ class YouTube4KCheckerGUI:
         for i, video in enumerate(self.video_details, 1):
             quality = "HD" if video['definition'] == 'hd' else "SD"
             
-            # Item'ı ekle video_id'yi tag olarak ekle
+            # Item'ı ekle video_id'yi tag olarak ekle, checkbox unchecked olarak başla
             item_id = self.video_tree.insert('', 'end', values=(
+                '☐',  # Checkbox - unchecked by default
                 i, 
                 "🖼️",  # Placeholder thumbnail için
                 video['title'][:50] + "..." if len(video['title']) > 50 else video['title'],
@@ -599,6 +696,10 @@ class YouTube4KCheckerGUI:
             thread = threading.Thread(target=self._load_thumbnail_async, args=(item_id, video['id'], video['thumbnail_url']))
             thread.daemon = True
             thread.start()
+        
+        # Check management buttons'ı aktif et
+        self.check_all_btn.config(state='normal')
+        self.uncheck_all_btn.config(state='normal')
         
         self.status_label.config(text=f"{len(self.video_details)} videos listed. Press button to check 4K.")
     
@@ -624,7 +725,7 @@ class YouTube4KCheckerGUI:
                 self.video_tree.item(item_id, image=photo)
                 # Thumbnail sütununu boş bırak (görsel image ile gösterilir)
                 values = list(self.video_tree.item(item_id, 'values'))
-                values[1] = ""  # Thumbnail sütunu
+                values[2] = ""  # Thumbnail sütunu (index 2 now)
                 self.video_tree.item(item_id, values=values)
         except Exception as e:
             print(f"Thumbnail could not be updated: {e}")
@@ -634,7 +735,7 @@ class YouTube4KCheckerGUI:
         try:
             if self.video_tree.exists(item_id):
                 values = list(self.video_tree.item(item_id, 'values'))
-                values[1] = text
+                values[2] = text  # Thumbnail sütunu (index 2 now)
                 self.video_tree.item(item_id, values=values)
         except Exception as e:
             print(f"Thumbnail text could not be updated: {e}")
@@ -746,9 +847,10 @@ class YouTube4KCheckerGUI:
             else:
                 # Durduruldu ama kısmi sonuçlar var
                 if self.found_4k_videos:
-                    self.root.after(0, lambda: self.copy_btn.config(state='normal'))
+                    self.root.after(0, lambda: self.check_4k_only_btn.config(state='normal'))
                     self.root.after(0, lambda: self.status_label.config(text=f"❌ Stopped. {len(self.found_4k_videos)} 4K videos found so far."))
-            
+                else:
+                    self.root.after(0, lambda: self.status_label.config(text="❌ Process stopped by user."))
         except Exception as e:
             self.root.after(0, lambda: messagebox.showerror("Error", f"4K check error: {str(e)}"))
         finally:
@@ -762,9 +864,9 @@ class YouTube4KCheckerGUI:
         """Video durumunu güncelle"""
         for item in self.video_tree.get_children():
             values = self.video_tree.item(item, 'values')
-            if video['title'][:50] in values[2]:  # Title sütunu
+            if video['title'][:50] in values[3]:  # Title sütunu (index 3 now)
                 new_values = list(values)
-                new_values[4] = status  # Status sütunu
+                new_values[5] = status  # Status sütunu (index 5 now)
                 self.video_tree.item(item, values=new_values)
                 break
     
@@ -775,9 +877,11 @@ class YouTube4KCheckerGUI:
         
         self.status_label.config(text=f"✅ Scan completed! {total_videos} videos scanned, {found_count} 4K videos found.")
         
+        # Check 4K Only butonunu aktif et
+        self.check_4k_only_btn.config(state='normal')
+        
         if self.found_4k_videos:
-            self.copy_btn.config(state='normal')
-            messagebox.showinfo("Result", f"🎉 {found_count} 4K videos found!\n\nUse 'Copy' button to copy URLs.")
+            messagebox.showinfo("Result", f"🎉 {found_count} 4K videos found!\n\nUse checkboxes to select videos and copy URLs.")
         else:
             messagebox.showinfo("Result", "😔 No 4K videos found.\n\nThis playlist doesn't have 4K quality videos.")
     
@@ -800,25 +904,6 @@ class YouTube4KCheckerGUI:
         
         return False
     
-    def copy_4k_urls(self):
-        """4K video URL'lerini panoya kopyala"""
-        if not self.found_4k_videos:
-            messagebox.showwarning("Warning", "No 4K videos to copy!")
-            return
-        
-        # URL'leri birleştir
-        urls = '\n'.join(self.found_4k_videos)
-        
-        try:
-            # Panoya kopyala
-            self.root.clipboard_clear()
-            self.root.clipboard_append(urls)
-            self.root.update()  # Clipboard'u güncelle
-            
-            messagebox.showinfo("Success", f"✅ {len(self.found_4k_videos)} 4K video URLs copied to clipboard!\n\nYou can now paste them anywhere.")
-        except Exception as e:
-            messagebox.showerror("Error", f"URLs could not be copied: {str(e)}")
-    
     def clear_all(self):
         """Tüm verileri temizle"""
         self.url_entry.delete(0, tk.END)
@@ -831,6 +916,9 @@ class YouTube4KCheckerGUI:
         self.check_4k_btn.config(state='disabled')
         self.stop_btn.config(state='disabled')
         self.copy_btn.config(state='disabled')
+        self.check_all_btn.config(state='disabled')
+        self.uncheck_all_btn.config(state='disabled')
+        self.check_4k_only_btn.config(state='disabled')
         self.found_4k_videos = []
         self.stop_requested = False
         self.thumbnail_cache.clear()  # Thumbnail önbelleğini temizle
