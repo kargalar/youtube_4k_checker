@@ -61,8 +61,7 @@ class YouTube4KCheckerGUI:
                        fieldbackground=self.colors['bg_secondary'],
                        borderwidth=1,
                        relief='solid',
-                       bordercolor=self.colors['border'],
-                       rowheight=60)
+                       bordercolor=self.colors['border'])
         
         style.configure('Dark.Treeview.Heading',
                        background=self.colors['bg_tertiary'],
@@ -135,6 +134,22 @@ class YouTube4KCheckerGUI:
                        borderwidth=0,
                        lightcolor=self.colors['accent_blue'],
                        darkcolor=self.colors['accent_blue'])
+        
+        style.configure('Dark.TScale',
+                       background=self.colors['bg_primary'],
+                       troughcolor=self.colors['bg_tertiary'],
+                       borderwidth=0,
+                       sliderthickness=20,
+                       sliderrelief='flat',
+                       slidercolor=self.colors['accent_blue'])
+        
+        style.configure('Dark.TCheckbutton',
+                       background=self.colors['bg_primary'],
+                       foreground=self.colors['text_primary'],
+                       focuscolor='none')
+        
+        style.map('Dark.TCheckbutton',
+                 background=[('active', self.colors['bg_primary'])])
     
     def create_widgets(self):
         # Ana frame container
@@ -194,15 +209,10 @@ class YouTube4KCheckerGUI:
         
         # Slider (0-1000 arası)
         self.video_limit_var = tk.IntVar(value=200)
-        self.limit_slider = tk.Scale(slider_frame, from_=10, to=1000, 
-                                    orient='horizontal', variable=self.video_limit_var,
-                                    bg=self.colors['bg_secondary'],
-                                    fg=self.colors['text_primary'],
-                                    highlightbackground=self.colors['bg_primary'],
-                                    troughcolor=self.colors['bg_tertiary'],
-                                    activebackground=self.colors['accent_blue'],
-                                    font=('Segoe UI', 9),
-                                    command=self.on_slider_change)
+        self.limit_slider = ttk.Scale(slider_frame, from_=10, to=1000, 
+                                     orient='horizontal', variable=self.video_limit_var,
+                                     style='Dark.TScale',
+                                     command=self.on_slider_change)
         self.limit_slider.pack(side='left', fill='x', expand=True, padx=(0, 10))
         
         # Entry kutusu
@@ -215,15 +225,10 @@ class YouTube4KCheckerGUI:
         
         # "All" checkbox
         self.all_videos_var = tk.BooleanVar(value=False)
-        self.all_videos_check = tk.Checkbutton(entry_frame, text="All", 
-                                              variable=self.all_videos_var,
-                                              command=self.on_all_videos_toggle,
-                                              bg=self.colors['bg_primary'],
-                                              fg=self.colors['text_primary'],
-                                              font=('Segoe UI', 10),
-                                              activebackground=self.colors['bg_primary'],
-                                              activeforeground=self.colors['text_primary'],
-                                              selectcolor=self.colors['bg_secondary'])
+        self.all_videos_check = ttk.Checkbutton(entry_frame, text="All", 
+                                               variable=self.all_videos_var,
+                                               command=self.on_all_videos_toggle,
+                                               style='Dark.TCheckbutton')
         self.all_videos_check.pack(side='right', padx=(10, 0))
         
         # Butonlar
@@ -245,26 +250,10 @@ class YouTube4KCheckerGUI:
         self.stop_btn.pack(side='left', padx=(0, 10))
         
         # Copy and Clear buttons
-        self.copy_btn = ttk.Button(button_frame, text="📋 Copy Checked", 
-                                  command=self.copy_checked_urls, style='Success.TButton',
+        self.copy_btn = ttk.Button(button_frame, text="📋 Copy 4K URLs", 
+                                  command=self.copy_4k_urls, style='Success.TButton',
                                   state='disabled')
         self.copy_btn.pack(side='left', padx=(0, 10))
-        
-        # Check management buttons
-        self.check_all_btn = ttk.Button(button_frame, text="☑️ Check All", 
-                                       command=self.check_all_videos, style='Dark.TButton',
-                                       state='disabled')
-        self.check_all_btn.pack(side='left', padx=(0, 10))
-        
-        self.uncheck_all_btn = ttk.Button(button_frame, text="☐ Uncheck All", 
-                                         command=self.uncheck_all_videos, style='Dark.TButton',
-                                         state='disabled')
-        self.uncheck_all_btn.pack(side='left', padx=(0, 10))
-        
-        self.check_4k_only_btn = ttk.Button(button_frame, text="✅ Check 4K Only", 
-                                           command=self.check_4k_only, style='Success.TButton',
-                                           state='disabled')
-        self.check_4k_only_btn.pack(side='left', padx=(0, 10))
         
         self.clear_btn = ttk.Button(button_frame, text="🗑️ Clear", 
                                    command=self.clear_all, style='Dark.TButton')
@@ -296,12 +285,11 @@ class YouTube4KCheckerGUI:
         tree_frame = ttk.Frame(list_frame, style='Dark.TFrame')
         tree_frame.pack(fill='both', expand=True)
         
-        columns = ('Check', 'No', 'Thumbnail', 'Title', 'Quality', 'Status')
+        columns = ('No', 'Thumbnail', 'Title', 'Quality', 'Status')
         self.video_tree = ttk.Treeview(tree_frame, columns=columns, show='headings', 
                                       height=15, style='Dark.Treeview')
         
         # Sütun başlıkları
-        self.video_tree.heading('Check', text='☑️')
         self.video_tree.heading('No', text='#')
         self.video_tree.heading('Thumbnail', text='🖼️')
         self.video_tree.heading('Title', text='Video Title')
@@ -309,10 +297,9 @@ class YouTube4KCheckerGUI:
         self.video_tree.heading('Status', text='4K Status')
         
         # Sütun genişlikleri
-        self.video_tree.column('Check', width=40, minwidth=40)
         self.video_tree.column('No', width=50, minwidth=50)
         self.video_tree.column('Thumbnail', width=80, minwidth=80)
-        self.video_tree.column('Title', width=400, minwidth=200)
+        self.video_tree.column('Title', width=450, minwidth=200)
         self.video_tree.column('Quality', width=100, minwidth=100)
         self.video_tree.column('Status', width=120, minwidth=120)
         
@@ -327,74 +314,35 @@ class YouTube4KCheckerGUI:
         # Right-click context menu
         self.create_context_menu()
         self.video_tree.bind('<Button-3>', self.show_context_menu)  # Right-click
-        self.video_tree.bind('<Button-1>', self.on_tree_click)  # Left-click for checkbox toggle
         
         # Bind events
         self.limit_entry.bind('<KeyRelease>', self.on_entry_change)
-
-    def create_context_menu(self):
-        """Create right-click context menu for video list"""
-        self.context_menu = tk.Menu(self.root, tearoff=0,
-                                   bg=self.colors['bg_secondary'],
-                                   fg=self.colors['text_primary'],
-                                   activebackground=self.colors['accent_blue'],
-                                   activeforeground=self.colors['text_primary'],
-                                   borderwidth=0)
         
-        self.context_menu.add_command(label="📋 Copy Video URL", command=self.copy_selected_url)
-        self.context_menu.add_separator()
-        self.context_menu.add_command(label="🗑️ Remove Video", command=self.remove_selected_video)
+        # Satır yüksekliği
+        style = ttk.Style()
+        style.configure("Treeview", rowheight=80)
         
-    def show_context_menu(self, event):
-        """Show context menu on right-click"""
-        # Select the item under cursor
-        item = self.video_tree.identify('item', event.x, event.y)
-        if item:
-            self.video_tree.selection_set(item)
-            self.context_menu.post(event.x_root, event.y_root)
+        # Scrollbar
+        scrollbar = ttk.Scrollbar(list_frame, orient='vertical', command=self.video_tree.yview)
+        self.video_tree.configure(yscrollcommand=scrollbar.set)
         
-    def copy_selected_url(self):
-        """Copy the URL of the selected video to clipboard"""
-        selection = self.video_tree.selection()
-        if selection:
-            item = selection[0]
-            video_id = self.video_tree.item(item)['tags'][0] if self.video_tree.item(item)['tags'] else None
-            if video_id:
-                url = f"https://www.youtube.com/watch?v={video_id}"
-                self.root.clipboard_clear()
-                self.root.clipboard_append(url)
-                self.status_label.config(text=f"Copied video URL to clipboard")
-                
-    def remove_selected_video(self):
-        """Remove the selected video from the list"""
-        selection = self.video_tree.selection()
-        if selection:
-            item = selection[0]
-            video_id = self.video_tree.item(item)['tags'][0] if self.video_tree.item(item)['tags'] else None
-            
-            # Remove from treeview
-            self.video_tree.delete(item)
-            
-            # Remove from found_4k_videos if it exists there
-            if video_id:
-                self.found_4k_videos = [v for v in self.found_4k_videos if v != f"https://www.youtube.com/watch?v={video_id}"]
-                
-                # Update copy button state
-                if self.found_4k_videos:
-                    self.copy_btn.config(state='normal')
-                else:
-                    self.copy_btn.config(state='disabled')
-            
-            self.status_label.config(text="Video removed from list")
-    
-    def on_entry_change(self, event=None):
-        """Entry değeri değiştiğinde slider'ı güncelle"""
-        try:
-            value = int(self.limit_entry.get())
-            if 10 <= value <= 1000:
-                self.limit_slider.set(value)
-        except ValueError:
-            pass
+        self.video_tree.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y')
+        
+        # Alt butonlar
+        bottom_frame = tk.Frame(self.root, bg='#f0f0f0')
+        bottom_frame.pack(pady=10, fill='x')
+        
+        self.copy_btn = tk.Button(bottom_frame, text="� 4K URL'leri Kopyala", 
+                                 command=self.copy_4k_urls, bg='#9C27B0', 
+                                 fg='white', font=('Arial', 11, 'bold'),
+                                 state='disabled')
+        self.copy_btn.pack(side='left', padx=20)
+        
+        self.clear_btn = tk.Button(bottom_frame, text="🗑️ Temizle", 
+                                  command=self.clear_all, bg='#607D8B', 
+                                  fg='white', font=('Arial', 11))
+        self.clear_btn.pack(side='right', padx=20)
     
     def on_slider_change(self, value):
         """Slider değeri değiştiğinde entry'yi güncelle"""
@@ -403,23 +351,20 @@ class YouTube4KCheckerGUI:
             pass  # textvariable otomatik güncelliyor
     
     def on_all_videos_toggle(self):
-        """All checkbox'ı değiştiğinde"""
+        """Hepsi checkbox'ı değiştiğinde"""
         if self.all_videos_var.get():
-            # All seçiliyse slider ve entry'yi devre dışı bırak
+            # Hepsi seçiliyse slider ve entry'yi devre dışı bırak
             self.limit_slider.config(state='disabled')
             self.limit_entry.config(state='disabled')
         else:
-            # All seçili değilse slider ve entry'yi etkinleştir
+            # Hepsi seçili değilse slider ve entry'yi etkinleştir
             self.limit_slider.config(state='normal')
             self.limit_entry.config(state='normal')
     
     def stop_processing(self):
         """İşlemi durdurmak için flag'i ayarla"""
         self.stop_requested = True
-        self.status_label.config(text="⏹️ Process stopping...")
-        # Copy butonunu aktif et (eğer 4K video bulunduysa)
-        if self.found_4k_videos:
-            self.copy_btn.config(state='normal')
+        self.status_label.config(text="⏹️ İşlem durduruluyor...")
     
     def get_playlist_info(self, playlist_id):
         """Playlist bilgilerini al"""
@@ -474,11 +419,11 @@ class YouTube4KCheckerGUI:
             playlist_info = self.get_playlist_info(playlist_id)
             if playlist_info:
                 info_text = f"📂 {playlist_info['title']}\n👤 {playlist_info['channel']} • 🎬 {playlist_info['video_count']} video"
-                self.root.after(0, lambda: self.playlist_info_label.config(text=info_text, fg=self.colors['accent_green']))
+                self.root.after(0, lambda: self.playlist_info_label.config(text=info_text, fg='#2E7D32'))
             else:
-                self.root.after(0, lambda: self.playlist_info_label.config(text="❌ Playlist not found or accessible", fg=self.colors['accent_red']))
+                self.root.after(0, lambda: self.playlist_info_label.config(text="❌ Playlist bulunamadı veya erişilemiyor", fg='#D32F2F'))
         except:
-            self.root.after(0, lambda: self.playlist_info_label.config(text="❌ Failed to get playlist info", fg=self.colors['accent_red']))
+            self.root.after(0, lambda: self.playlist_info_label.config(text="❌ Playlist bilgileri alınamadı", fg='#D32F2F'))
     
     def paste_url(self):
         """Panodaki URL'yi yapıştır"""
@@ -489,7 +434,7 @@ class YouTube4KCheckerGUI:
             # URL yapıştırıldığında playlist bilgilerini güncelle
             self.on_url_change()
         except:
-            messagebox.showwarning("Warning", "No text found in clipboard!")
+            messagebox.showwarning("Uyarı", "Panoda metin bulunamadı!")
     
     def load_thumbnail(self, video_id, thumbnail_url):
         """Video thumbnail'ini yükle ve önbelleğe al"""
@@ -501,7 +446,7 @@ class YouTube4KCheckerGUI:
             if response.status_code == 200:
                 # PIL ile resmi yükle ve yeniden boyutlandır
                 image = Image.open(io.BytesIO(response.content))
-                image = image.resize((60, 40), Image.Resampling.LANCZOS)
+                image = image.resize((100, 60), Image.Resampling.LANCZOS)
                 
                 # Tkinter uyumlu hale getir
                 photo = ImageTk.PhotoImage(image)
@@ -511,9 +456,28 @@ class YouTube4KCheckerGUI:
                 self.thumbnail_refs.append(photo)  # Referansı koru
                 return photo
         except Exception as e:
-            print(f"Thumbnail could not be loaded ({video_id}): {e}")
+            print(f"Thumbnail yüklenemedi ({video_id}): {e}")
+            # Hata durumunda kırmızı X işareti oluştur
+            error_image = Image.new('RGB', (100, 60), color='#ffcccc')
+            try:
+                # Basit bir X işareti çiz (PIL'in drawing özelliği olmadan)
+                photo = ImageTk.PhotoImage(error_image)
+                self.thumbnail_cache[video_id] = photo
+                return photo
+            except:
+                pass
         
         return None
+    
+    def create_error_thumbnail(self):
+        """Hata durumu için basit bir thumbnail oluştur"""
+        try:
+            # Açık kırmızı arka plan
+            image = Image.new('RGB', (100, 60), color='#ffcccc')
+            photo = ImageTk.PhotoImage(image)
+            return photo
+        except:
+            return None
     
     def extract_playlist_id(self, playlist_url):
         """Playlist URL'sinden ID'yi çıkar"""
@@ -529,12 +493,12 @@ class YouTube4KCheckerGUI:
             
         url = self.url_entry.get().strip()
         if not url:
-            messagebox.showerror("Error", "Please enter playlist URL!")
+            messagebox.showerror("Hata", "Lütfen playlist URL'si girin!")
             return
         
         # Video sayısı sınırını al
         if self.all_videos_var.get():
-            max_videos = None  # All
+            max_videos = None  # Hepsi
         else:
             max_videos = self.video_limit_var.get()
         
@@ -551,7 +515,7 @@ class YouTube4KCheckerGUI:
         self.check_4k_btn.config(state='disabled')
         
         try:
-            self.status_label.config(text="Analyzing playlist...")
+            self.status_label.config(text="Playlist analiz ediliyor...")
             
             # Playlist ID'yi çıkar
             playlist_id = self.extract_playlist_id(url)
@@ -559,7 +523,7 @@ class YouTube4KCheckerGUI:
             # Video ID'lerini al
             video_ids = self.get_video_ids_from_playlist(playlist_id, max_videos)
             
-            self.status_label.config(text=f"{len(video_ids)} videos found, getting details...")
+            self.status_label.config(text=f"{len(video_ids)} video bulundu, detaylar alınıyor...")
             
             # Video detaylarını al
             self.video_details = self.get_video_details(video_ids)
@@ -568,7 +532,7 @@ class YouTube4KCheckerGUI:
             self.root.after(0, self._update_video_list)
             
         except Exception as e:
-            self.root.after(0, lambda: messagebox.showerror("Error", f"Error getting videos: {str(e)}"))
+            self.root.after(0, lambda: messagebox.showerror("Hata", f"Video alınırken hata: {str(e)}"))
         finally:
             self.is_processing = False
             self.progress.stop()
@@ -586,21 +550,21 @@ class YouTube4KCheckerGUI:
         for i, video in enumerate(self.video_details, 1):
             quality = "HD" if video['definition'] == 'hd' else "SD"
             
-            # Item'ı ekle video_id'yi tag olarak ekle
+            # Önce item'ı ekle
             item_id = self.video_tree.insert('', 'end', values=(
+                "📷",  # Placeholder thumbnail için
                 i, 
-                "🖼️",  # Placeholder thumbnail için
-                video['title'][:50] + "..." if len(video['title']) > 50 else video['title'],
+                video['title'][:40] + "..." if len(video['title']) > 40 else video['title'],
                 quality,
-                "Waiting..."
-            ), tags=(video['id'],))
+                "Bekliyor..."
+            ))
             
             # Thumbnail'i thread'de yükle
             thread = threading.Thread(target=self._load_thumbnail_async, args=(item_id, video['id'], video['thumbnail_url']))
             thread.daemon = True
             thread.start()
         
-        self.status_label.config(text=f"{len(self.video_details)} videos listed. Press button to check 4K.")
+        self.status_label.config(text=f"{len(self.video_details)} video listelendi. 4K kontrol için butona basın.")
     
     def _load_thumbnail_async(self, item_id, video_id, thumbnail_url):
         """Thumbnail'i asenkron olarak yükle"""
@@ -620,24 +584,23 @@ class YouTube4KCheckerGUI:
         try:
             # TreeView item'ını güncelle
             if self.video_tree.exists(item_id):
-                # Thumbnail'i image olarak ayarla
                 self.video_tree.item(item_id, image=photo)
-                # Thumbnail sütununu boş bırak (görsel image ile gösterilir)
+                # Thumbnail sütununu güncelle
                 values = list(self.video_tree.item(item_id, 'values'))
-                values[1] = ""  # Thumbnail sütunu
+                values[0] = ""  # Thumbnail sütunu
                 self.video_tree.item(item_id, values=values)
         except Exception as e:
-            print(f"Thumbnail could not be updated: {e}")
+            print(f"Thumbnail güncellenemedi: {e}")
     
     def _update_thumbnail_text(self, item_id, text):
         """Thumbnail yerine metin göster"""
         try:
             if self.video_tree.exists(item_id):
                 values = list(self.video_tree.item(item_id, 'values'))
-                values[1] = text
+                values[0] = text
                 self.video_tree.item(item_id, values=values)
         except Exception as e:
-            print(f"Thumbnail text could not be updated: {e}")
+            print(f"Thumbnail metni güncellenemedi: {e}")
     
     def get_video_ids_from_playlist(self, playlist_id, max_videos=None):
         """Playlist'ten video ID'lerini al"""
@@ -705,8 +668,7 @@ class YouTube4KCheckerGUI:
         self.stop_requested = False
         self.progress.start()
         self.check_4k_btn.config(state='disabled')
-        self.stop_btn.config(state='normal')  # Stop butonunu aktif et
-        self.copy_btn.config(state='disabled')  # Copy butonunu deaktif et
+        self.stop_btn.config(state='normal')  # Durdur butonunu aktif et
         self.found_4k_videos = []
         
         try:
@@ -715,57 +677,50 @@ class YouTube4KCheckerGUI:
             for i, video in enumerate(hd_videos):
                 # Durduruluyor mu kontrol et
                 if self.stop_requested:
-                    self.root.after(0, lambda: self.status_label.config(text="❌ Process stopped by user."))
+                    self.root.after(0, lambda: self.status_label.config(text="❌ İşlem kullanıcı tarafından durduruldu."))
                     break
                 
                 # GUI'yi güncelle
-                self.root.after(0, lambda v=video, idx=i: self._update_video_status(v, f"Checking... ({idx+1}/{len(hd_videos)})"))
+                self.root.after(0, lambda v=video, idx=i: self._update_video_status(v, f"Kontrol ediliyor... ({idx+1}/{len(hd_videos)})"))
                 
                 # 4K kontrolü yap
                 is_4k = self.check_4k_availability(video['url'])
                 
                 # Tekrar durduruluyor mu kontrol et (HTTP isteği sonrası)
                 if self.stop_requested:
-                    self.root.after(0, lambda: self.status_label.config(text="❌ Process stopped by user."))
+                    self.root.after(0, lambda: self.status_label.config(text="❌ İşlem kullanıcı tarafından durduruldu."))
                     break
                 
                 if is_4k:
-                    self.found_4k_videos.append(video['url'])
-                    self.root.after(0, lambda v=video: self._update_video_status(v, "✅ 4K Available!"))
+                    self.found_4k_videos.append(video)
+                    self.root.after(0, lambda v=video: self._update_video_status(v, "✅ 4K Mevcut!"))
                 else:
-                    self.root.after(0, lambda v=video: self._update_video_status(v, "❌ No 4K"))
+                    self.root.after(0, lambda v=video: self._update_video_status(v, "❌ 4K Yok"))
             
-            # SD videoları için durum güncelle
+            # İşlem durdurulmadıysa SD videoları için durum güncelle
             if not self.stop_requested:
                 sd_videos = [v for v in self.video_details if v['definition'] == 'sd']
                 for video in sd_videos:
-                    self.root.after(0, lambda v=video: self._update_video_status(v, "📱 SD Quality"))
+                    self.root.after(0, lambda v=video: self._update_video_status(v, "📱 SD Kalite"))
                 
                 # Sonuçları göster
                 self.root.after(0, self._show_results)
-            else:
-                # Durduruldu ama kısmi sonuçlar var
-                if self.found_4k_videos:
-                    self.root.after(0, lambda: self.copy_btn.config(state='normal'))
-                    self.root.after(0, lambda: self.status_label.config(text=f"❌ Stopped. {len(self.found_4k_videos)} 4K videos found so far."))
             
         except Exception as e:
-            self.root.after(0, lambda: messagebox.showerror("Error", f"4K check error: {str(e)}"))
+            self.root.after(0, lambda: messagebox.showerror("Hata", f"4K kontrol hatası: {str(e)}"))
         finally:
             self.is_processing = False
             self.stop_requested = False
             self.progress.stop()
             self.check_4k_btn.config(state='normal')
-            self.stop_btn.config(state='disabled')  # Stop butonunu deaktif et
+            self.stop_btn.config(state='disabled')  # Durdur butonunu deaktif et
     
     def _update_video_status(self, video, status):
         """Video durumunu güncelle"""
         for item in self.video_tree.get_children():
             values = self.video_tree.item(item, 'values')
-            if video['title'][:50] in values[2]:  # Title sütunu
-                new_values = list(values)
-                new_values[4] = status  # Status sütunu
-                self.video_tree.item(item, values=new_values)
+            if video['title'][:40] in values[2]:  # Başlık sütunu artık index 2
+                self.video_tree.item(item, values=(values[0], values[1], values[2], values[3], status))
                 break
     
     def _show_results(self):
@@ -773,13 +728,13 @@ class YouTube4KCheckerGUI:
         total_videos = len(self.video_details)
         found_count = len(self.found_4k_videos)
         
-        self.status_label.config(text=f"✅ Scan completed! {total_videos} videos scanned, {found_count} 4K videos found.")
+        self.status_label.config(text=f"✅ Tarama tamamlandı! {total_videos} video tarandı, {found_count} adet 4K video bulundu.")
         
         if self.found_4k_videos:
             self.copy_btn.config(state='normal')
-            messagebox.showinfo("Result", f"🎉 {found_count} 4K videos found!\n\nUse 'Copy' button to copy URLs.")
+            messagebox.showinfo("Sonuç", f"🎉 {found_count} adet 4K video bulundu!\n\nURL'leri kopyalamak için 'Kopyala' butonunu kullanın.")
         else:
-            messagebox.showinfo("Result", "😔 No 4K videos found.\n\nThis playlist doesn't have 4K quality videos.")
+            messagebox.showinfo("Sonuç", "😔 4K video bulunamadı.\n\nBu playlist'te 4K kalitede video bulunmuyor.")
     
     def check_4k_availability(self, video_url):
         """4K kalite kontrolü"""
@@ -803,11 +758,11 @@ class YouTube4KCheckerGUI:
     def copy_4k_urls(self):
         """4K video URL'lerini panoya kopyala"""
         if not self.found_4k_videos:
-            messagebox.showwarning("Warning", "No 4K videos to copy!")
+            messagebox.showwarning("Uyarı", "Kopyalanacak 4K video bulunamadı!")
             return
         
         # URL'leri birleştir
-        urls = '\n'.join(self.found_4k_videos)
+        urls = '\n'.join([video['url'] for video in self.found_4k_videos])
         
         try:
             # Panoya kopyala
@@ -815,9 +770,9 @@ class YouTube4KCheckerGUI:
             self.root.clipboard_append(urls)
             self.root.update()  # Clipboard'u güncelle
             
-            messagebox.showinfo("Success", f"✅ {len(self.found_4k_videos)} 4K video URLs copied to clipboard!\n\nYou can now paste them anywhere.")
+            messagebox.showinfo("Başarılı", f"✅ {len(self.found_4k_videos)} adet 4K video URL'si panoya kopyalandı!\n\nArtık istediğiniz yere yapıştırabilirsiniz.")
         except Exception as e:
-            messagebox.showerror("Error", f"URLs could not be copied: {str(e)}")
+            messagebox.showerror("Hata", f"URL'ler kopyalanamadı: {str(e)}")
     
     def clear_all(self):
         """Tüm verileri temizle"""
@@ -827,7 +782,7 @@ class YouTube4KCheckerGUI:
         for item in self.video_tree.get_children():
             self.video_tree.delete(item)
         
-        self.status_label.config(text="Enter playlist URL and click 'Get Videos'")
+        self.status_label.config(text="Playlist URL'si girin ve 'Videoları Getir' butonuna basın")
         self.check_4k_btn.config(state='disabled')
         self.stop_btn.config(state='disabled')
         self.copy_btn.config(state='disabled')
