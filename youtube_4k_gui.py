@@ -2,11 +2,17 @@ import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, filedialog
 import threading
 from googleapiclient.discovery import build
+from google_auth_oauthlib.flow import Flow
+from google.auth.transport.requests import Request
+import google.auth.exceptions
 import requests
 import re
 import os
+import json
+import pickle
 from PIL import Image, ImageTk
 import io
+import webbrowser
 
 class YouTube4KCheckerGUI:
     def __init__(self, root):
@@ -38,6 +44,21 @@ class YouTube4KCheckerGUI:
         self.API_KEY = 'AIzaSyA3hWhKJmy2_0A7cfbB46va3XWsq-SeV2E'
         self.youtube = build('youtube', 'v3', developerKey=self.API_KEY)
         
+        # OAuth2 için değişkenler
+        self.authenticated_youtube = None
+        self.credentials = None
+        self.flow = None
+        self.is_authenticated = False
+        self.oauth_scopes = ['https://www.googleapis.com/auth/youtube']
+        self.oauth_redirect_uri = 'urn:ietf:wg:oauth:2.0:oob'  # Out-of-band mode
+        
+        # OAuth2 credentials dosyası
+        self.client_secrets_file = os.path.join(os.path.dirname(__file__), 'client_secret.json')
+        self.token_file = os.path.join(os.path.dirname(__file__), 'token.pickle')
+        
+        # OAuth2 durumunu kontrol et
+        self.check_existing_authentication()
+        
         # İşlem durumu
         self.is_processing = False
         self.stop_requested = False  # İşlemi durdurma talebi
@@ -46,6 +67,211 @@ class YouTube4KCheckerGUI:
         self.thumbnail_refs = []   # Thumbnail referanslarını korumak için
         
         self.create_widgets()
+
+    def check_existing_authentication(self):
+        """Mevcut authentication durumunu kontrol et"""
+        try:
+            if os.path.exists(self.token_file):
+                with open(self.token_file, 'rb') as token:
+                    self.credentials = pickle.load(token)
+                
+                if self.credentials and self.credentials.valid:
+                    self.authenticated_youtube = build('youtube', 'v3', credentials=self.credentials)
+                    self.is_authenticated = True
+                elif self.credentials and self.credentials.expired and self.credentials.refresh_token:
+                    try:
+                        self.credentials.refresh(Request())
+                        self.authenticated_youtube = build('youtube', 'v3', credentials=self.credentials)
+                        self.is_authenticated = True
+                        # Güncellenmiş token'ı kaydet
+                        with open(self.token_file, 'wb') as token:
+                            pickle.dump(self.credentials, token)
+                    except:
+                        self.is_authenticated = False
+                else:
+                    self.is_authenticated = False
+        except:
+            self.is_authenticated = False
+
+    def start_oauth_flow(self):
+        """OAuth2 flow'unu başlat"""
+        try:
+            if not os.path.exists(self.client_secrets_file):
+                messagebox.showerror("Error", f"OAuth2 credentials file not found: {self.client_secrets_file}")
+                return
+            
+            self.flow = Flow.from_client_secrets_file(
+                self.client_secrets_file,
+                scopes=self.oauth_scopes,
+                redirect_uri=self.oauth_redirect_uri
+            )
+            
+            auth_url, _ = self.flow.authorization_url(prompt='consent')
+            
+            # Browser'da URL'yi aç
+            webbrowser.open(auth_url)
+            
+            # Kullanıcıdan authorization code iste
+            self.show_oauth_dialog(auth_url)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"OAuth flow could not be started: {str(e)}")
+
+    def show_oauth_dialog(self, auth_url):
+        """OAuth2 authorization dialog göster"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("YouTube Authentication")
+        dialog.geometry("700x500")
+        dialog.configure(bg=self.colors['bg_primary'])
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        # Dialog içeriği
+        tk.Label(dialog, text="🔐 YouTube Authentication Required", 
+                font=('Segoe UI', 16, 'bold'),
+                bg=self.colors['bg_primary'], 
+                fg=self.colors['text_primary']).pack(pady=20)
+        
+        tk.Label(dialog, text="To remove videos from your YouTube playlist, you need to authenticate:",
+                font=('Segoe UI', 11),
+                bg=self.colors['bg_primary'], 
+                fg=self.colors['text_secondary']).pack(pady=10)
+        
+        # Instructions
+        instructions_frame = ttk.Frame(dialog, style='Dark.TFrame')
+        instructions_frame.pack(pady=10, padx=20, fill='x')
+        
+        instructions_text = """📋 Instructions:
+1. Click the 'Open Browser' button below
+2. Sign in with your Google account
+3. Click 'Allow' to grant permissions
+4. You'll see a page with an authorization code
+5. Copy that code and paste it in the field below"""
+        
+        tk.Label(instructions_frame, text=instructions_text,
+                font=('Segoe UI', 10),
+                bg=self.colors['bg_primary'], 
+                fg=self.colors['text_secondary'],
+                justify='left').pack(anchor='w')
+        
+        # Browser button
+        ttk.Button(dialog, text="🌐 Open Browser for Authentication", 
+                  command=lambda: webbrowser.open(auth_url),
+                  style='Success.TButton').pack(pady=15)
+        
+        # URL display (for copy-paste if browser doesn't open)
+        url_frame = ttk.Frame(dialog, style='Dark.TFrame')
+        url_frame.pack(pady=10, padx=20, fill='x')
+        
+        tk.Label(url_frame, text="If browser doesn't open, copy this URL:",
+                font=('Segoe UI', 9),
+                bg=self.colors['bg_primary'], 
+                fg=self.colors['text_secondary']).pack(anchor='w')
+        
+        url_entry = tk.Text(url_frame, height=3, wrap='word',
+                           bg=self.colors['bg_secondary'],
+                           fg=self.colors['text_primary'],
+                           font=('Segoe UI', 9))
+        url_entry.insert('1.0', auth_url)
+        url_entry.config(state='disabled')
+        url_entry.pack(fill='x', pady=5)
+        
+        tk.Label(dialog, text="After authentication, paste the authorization code below:",
+                font=('Segoe UI', 11, 'bold'),
+                bg=self.colors['bg_primary'], 
+                fg=self.colors['text_primary']).pack(pady=(20, 5))
+        
+        # Authorization code entry
+        code_entry = ttk.Entry(dialog, font=('Segoe UI', 11), width=60, style='Dark.TEntry')
+        code_entry.pack(pady=5)
+        
+        # Buttons frame
+        btn_frame = ttk.Frame(dialog, style='Dark.TFrame')
+        btn_frame.pack(pady=20)
+        
+        ttk.Button(btn_frame, text="✅ Complete Authentication", 
+                  command=lambda: self.complete_oauth(code_entry.get(), dialog),
+                  style='Success.TButton').pack(side='left', padx=5)
+        
+        ttk.Button(btn_frame, text="❌ Cancel", 
+                  command=dialog.destroy,
+                  style='Danger.TButton').pack(side='left', padx=5)
+
+    def complete_oauth(self, authorization_code, dialog):
+        """OAuth2 authentication'ı tamamla"""
+        try:
+            if not authorization_code.strip():
+                messagebox.showerror("Error", "Please enter the authorization code!")
+                return
+            
+            # Remove any extra whitespace and potential URL fragments
+            clean_code = authorization_code.strip()
+            
+            # If user pasted the full URL instead of just the code, extract the code
+            if 'code=' in clean_code:
+                try:
+                    clean_code = clean_code.split('code=')[1].split('&')[0]
+                except:
+                    pass
+            
+            # Token'ı al
+            self.flow.fetch_token(code=clean_code)
+            self.credentials = self.flow.credentials
+            
+            # Authenticated YouTube service oluştur
+            self.authenticated_youtube = build('youtube', 'v3', credentials=self.credentials)
+            self.is_authenticated = True
+            
+            # Token'ı kaydet
+            with open(self.token_file, 'wb') as token:
+                pickle.dump(self.credentials, token)
+            
+            dialog.destroy()
+            messagebox.showinfo("Success", "✅ Authentication successful!\n\nYou can now remove videos from your YouTube playlists.")
+            
+            # Authentication status'unu güncelle
+            self.update_auth_status()
+            
+        except Exception as e:
+            error_msg = str(e)
+            if "invalid_grant" in error_msg.lower():
+                messagebox.showerror("Error", "Invalid authorization code. Please try again.\n\nMake sure you copied the entire code correctly.")
+            elif "access_denied" in error_msg.lower():
+                messagebox.showerror("Error", "Access was denied. Please make sure you:\n1. Are logged in as m.islam0422@gmail.com\n2. Click 'Allow' when prompted\n3. Are added as a test user in Google Cloud Console")
+            else:
+                messagebox.showerror("Error", f"Authentication failed: {error_msg}\n\nPlease try again or check your internet connection.")
+
+    def logout_oauth(self):
+        """OAuth2 logout"""
+        try:
+            if os.path.exists(self.token_file):
+                os.remove(self.token_file)
+            
+            self.credentials = None
+            self.authenticated_youtube = None
+            self.is_authenticated = False
+            
+            self.update_auth_status()
+            messagebox.showinfo("Success", "Successfully logged out!")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Logout failed: {str(e)}")
+
+    def update_auth_status(self):
+        """Authentication status'unu güncelle"""
+        if hasattr(self, 'auth_status_label'):
+            if self.is_authenticated:
+                self.auth_status_label.config(text="🔐 Authenticated", fg=self.colors['accent_green'])
+                self.auth_btn.config(text="🚪 Logout", command=self.logout_oauth, style='Warning.TButton')
+                # YouTube removal butonunu aktif et
+                if hasattr(self, 'remove_from_youtube_btn'):
+                    self.remove_from_youtube_btn.config(state='normal')
+            else:
+                self.auth_status_label.config(text="⚠️ Not Authenticated", fg=self.colors['accent_orange'])
+                self.auth_btn.config(text="🔐 Login", command=self.start_oauth_flow, style='Success.TButton')
+                # YouTube removal butonunu deaktif et
+                if hasattr(self, 'remove_from_youtube_btn'):
+                    self.remove_from_youtube_btn.config(state='disabled')
 
     def setup_dark_theme(self):
         """Configure dark theme for ttk widgets"""
@@ -146,7 +372,30 @@ class YouTube4KCheckerGUI:
                               font=('Segoe UI', 18, 'bold'), 
                               bg=self.colors['bg_primary'], 
                               fg=self.colors['text_primary'])
-        title_label.pack(pady=(0, 20))
+        title_label.pack(pady=(0, 10))
+        
+        # Authentication status
+        auth_frame = ttk.Frame(main_container, style='Dark.TFrame')
+        auth_frame.pack(pady=(0, 20), fill='x')
+        
+        auth_left_frame = ttk.Frame(auth_frame, style='Dark.TFrame')
+        auth_left_frame.pack(side='left')
+        
+        self.auth_status_label = tk.Label(auth_left_frame, text="⚠️ Not Authenticated", 
+                                         font=('Segoe UI', 12, 'bold'),
+                                         bg=self.colors['bg_primary'], 
+                                         fg=self.colors['accent_orange'])
+        self.auth_status_label.pack(side='left')
+        
+        auth_right_frame = ttk.Frame(auth_frame, style='Dark.TFrame')
+        auth_right_frame.pack(side='right')
+        
+        self.auth_btn = ttk.Button(auth_right_frame, text="🔐 Login", 
+                                  command=self.start_oauth_flow, style='Success.TButton')
+        self.auth_btn.pack(side='right')
+        
+        # Authentication status'unu güncelle
+        self.update_auth_status()
         
         # Playlist URL girişi
         url_frame = ttk.Frame(main_container, style='Dark.TFrame')
@@ -266,6 +515,13 @@ class YouTube4KCheckerGUI:
                                            state='disabled')
         self.check_4k_only_btn.pack(side='left', padx=(0, 10))
         
+        # YouTube removal button (only visible when authenticated)
+        self.remove_from_youtube_btn = ttk.Button(button_frame, text="❌ Remove from YouTube", 
+                                                 command=self.remove_checked_from_youtube, 
+                                                 style='Danger.TButton',
+                                                 state='disabled')
+        self.remove_from_youtube_btn.pack(side='left', padx=(0, 10))
+        
         self.clear_btn = ttk.Button(button_frame, text="🗑️ Clear", 
                                    command=self.clear_all, style='Dark.TButton')
         self.clear_btn.pack(side='left')
@@ -343,7 +599,11 @@ class YouTube4KCheckerGUI:
         
         self.context_menu.add_command(label="📋 Copy Video URL", command=self.copy_selected_url)
         self.context_menu.add_separator()
-        self.context_menu.add_command(label="🗑️ Remove Video", command=self.remove_selected_video)
+        self.context_menu.add_command(label="🗑️ Remove from Local List", command=self.remove_selected_video)
+        
+        # Add YouTube playlist removal if authenticated
+        if self.is_authenticated:
+            self.context_menu.add_command(label="❌ Remove from YouTube Playlist", command=self.remove_selected_from_youtube)
         
     def show_context_menu(self, event):
         """Show context menu on right-click"""
@@ -351,6 +611,8 @@ class YouTube4KCheckerGUI:
         item = self.video_tree.identify('item', event.x, event.y)
         if item:
             self.video_tree.selection_set(item)
+            # Recreate context menu to update authentication status
+            self.create_context_menu()
             self.context_menu.post(event.x_root, event.y_root)
         
     def copy_selected_url(self):
@@ -387,6 +649,95 @@ class YouTube4KCheckerGUI:
             
             self.status_label.config(text="Video removed from list")
     
+    def remove_selected_from_youtube(self):
+        """Remove the selected video from YouTube playlist"""
+        if not self.is_authenticated:
+            messagebox.showerror("Error", "Authentication required for this operation!")
+            return
+            
+        selection = self.video_tree.selection()
+        if not selection:
+            messagebox.showwarning("Warning", "No video selected!")
+            return
+            
+        item = selection[0]
+        video_id = self.video_tree.item(item)['tags'][0] if self.video_tree.item(item)['tags'] else None
+        
+        if not video_id:
+            messagebox.showerror("Error", "Could not find video ID!")
+            return
+        
+        video_title = self.video_tree.item(item, 'values')[3]  # Title column
+        
+        # Confirmation
+        confirm = messagebox.askyesno("Confirm Removal", 
+                                     f"⚠️ WARNING: This will permanently remove this video from your YouTube playlist:\n\n"
+                                     f"'{video_title[:50]}...'\n\n"
+                                     "This action cannot be undone. Are you sure?")
+        
+        if not confirm:
+            return
+        
+        # Create video data for removal
+        video_data = [{
+            'video_id': video_id,
+            'url': f"https://www.youtube.com/watch?v={video_id}",
+            'title': video_title,
+            'tree_item': item
+        }]
+        
+        # Start removal
+        self.progress.start()
+        self.status_label.config(text=f"🗑️ Removing '{video_title[:30]}...' from YouTube playlist...")
+        
+        thread = threading.Thread(target=self._remove_from_playlist_thread, args=(video_data,))
+        thread.daemon = True
+        thread.start()
+    
+    def remove_checked_from_youtube(self):
+        """Remove checked videos from YouTube playlist"""
+        if not self.is_authenticated:
+            messagebox.showerror("Error", "Authentication required for this operation!")
+            return
+        
+        # Get checked videos
+        checked_video_data = []
+        
+        for item in self.video_tree.get_children():
+            values = self.video_tree.item(item, 'values')
+            is_checked = values[0] == '☑️'
+            
+            if is_checked:
+                # Get video ID from tags
+                video_id = self.video_tree.item(item)['tags'][0] if self.video_tree.item(item)['tags'] else None
+                if video_id:
+                    checked_video_data.append({
+                        'video_id': video_id,
+                        'url': f"https://www.youtube.com/watch?v={video_id}",
+                        'title': values[3],  # Title column
+                        'tree_item': item
+                    })
+        
+        if not checked_video_data:
+            messagebox.showwarning("Warning", "No videos are checked!")
+            return
+        
+        # Confirmation dialog
+        confirm = messagebox.askyesno("Confirm Bulk Removal", 
+                                     f"⚠️ WARNING: This will permanently remove {len(checked_video_data)} checked videos from your YouTube playlist!\n\n"
+                                     "This action cannot be undone. Are you sure?")
+        
+        if not confirm:
+            return
+        
+        # Start removal
+        self.progress.start()
+        self.status_label.config(text=f"🗑️ Removing {len(checked_video_data)} videos from YouTube playlist...")
+        
+        thread = threading.Thread(target=self._remove_from_playlist_thread, args=(checked_video_data,))
+        thread.daemon = True
+        thread.start()
+    
     def on_tree_click(self, event):
         """Handle left-click on treeview to toggle checkboxes"""
         item = self.video_tree.identify('item', event.x, event.y)
@@ -420,8 +771,14 @@ class YouTube4KCheckerGUI:
         
         if has_checked:
             self.copy_btn.config(state='normal')
+            # YouTube removal butonunu da kontrol et (authentication gerekli)
+            if self.is_authenticated and hasattr(self, 'remove_from_youtube_btn'):
+                self.remove_from_youtube_btn.config(state='normal')
         else:
             self.copy_btn.config(state='disabled')
+            # YouTube removal butonunu deaktif et
+            if hasattr(self, 'remove_from_youtube_btn'):
+                self.remove_from_youtube_btn.config(state='disabled')
     
     def check_all_videos(self):
         """Check all videos in the list"""
@@ -454,6 +811,7 @@ class YouTube4KCheckerGUI:
     def copy_checked_urls(self):
         """Copy URLs of checked videos to clipboard"""
         checked_urls = []
+        checked_video_data = []
         
         for item in self.video_tree.get_children():
             values = self.video_tree.item(item, 'values')
@@ -465,6 +823,12 @@ class YouTube4KCheckerGUI:
                 if video_id:
                     url = f"https://www.youtube.com/watch?v={video_id}"
                     checked_urls.append(url)
+                    checked_video_data.append({
+                        'video_id': video_id,
+                        'url': url,
+                        'title': values[3],  # Title column
+                        'tree_item': item
+                    })
         
         if not checked_urls:
             messagebox.showwarning("Warning", "No videos are checked!")
@@ -479,9 +843,191 @@ class YouTube4KCheckerGUI:
             self.root.clipboard_append(urls_text)
             self.root.update()
             
-            messagebox.showinfo("Success", f"✅ {len(checked_urls)} video URLs copied to clipboard!\n\nYou can now paste them anywhere.")
+            # Show options dialog
+            self.show_copy_options_dialog(checked_video_data, len(checked_urls))
+            
         except Exception as e:
             messagebox.showerror("Error", f"URLs could not be copied: {str(e)}")
+    
+    def show_copy_options_dialog(self, checked_video_data, count):
+        """Show options after copying URLs"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("URLs Copied - What's Next?")
+        dialog.geometry("500x350")
+        dialog.configure(bg=self.colors['bg_primary'])
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        # Dialog içeriği
+        tk.Label(dialog, text="✅ URLs Copied to Clipboard!", 
+                font=('Segoe UI', 16, 'bold'),
+                bg=self.colors['bg_primary'], 
+                fg=self.colors['accent_green']).pack(pady=20)
+        
+        tk.Label(dialog, text=f"{count} video URLs have been copied to your clipboard.",
+                font=('Segoe UI', 11),
+                bg=self.colors['bg_primary'], 
+                fg=self.colors['text_secondary']).pack(pady=10)
+        
+        tk.Label(dialog, text="What would you like to do next?",
+                font=('Segoe UI', 12, 'bold'),
+                bg=self.colors['bg_primary'], 
+                fg=self.colors['text_primary']).pack(pady=(20, 10))
+        
+        # Options frame
+        options_frame = ttk.Frame(dialog, style='Dark.TFrame')
+        options_frame.pack(pady=10, fill='x', padx=40)
+        
+        # Option 1: Just close
+        ttk.Button(options_frame, text="📋 Just Copy (Done)", 
+                  command=dialog.destroy,
+                  style='Dark.TButton').pack(fill='x', pady=5)
+        
+        # Option 2: Remove from local list
+        ttk.Button(options_frame, text="🗑️ Remove from Local List", 
+                  command=lambda: self.remove_from_local_list(checked_video_data, dialog),
+                  style='Warning.TButton').pack(fill='x', pady=5)
+        
+        # Option 3: Remove from YouTube playlist (if authenticated)
+        if self.is_authenticated:
+            ttk.Button(options_frame, text="❌ Remove from YouTube Playlist", 
+                      command=lambda: self.remove_from_youtube_playlist(checked_video_data, dialog),
+                      style='Danger.TButton').pack(fill='x', pady=5)
+        else:
+            # Show authentication required
+            auth_frame = ttk.Frame(options_frame, style='Dark.TFrame')
+            auth_frame.pack(fill='x', pady=5)
+            
+            ttk.Button(auth_frame, text="❌ Remove from YouTube Playlist", 
+                      state='disabled',
+                      style='Danger.TButton').pack(fill='x')
+            
+            tk.Label(auth_frame, text="(Requires authentication)",
+                    font=('Segoe UI', 9),
+                    bg=self.colors['bg_primary'], 
+                    fg=self.colors['text_secondary']).pack()
+    
+    def remove_from_local_list(self, video_data, dialog):
+        """Remove videos from local list only"""
+        for video in video_data:
+            if self.video_tree.exists(video['tree_item']):
+                self.video_tree.delete(video['tree_item'])
+        
+        # Update found_4k_videos list
+        for video in video_data:
+            if video['url'] in self.found_4k_videos:
+                self.found_4k_videos.remove(video['url'])
+        
+        dialog.destroy()
+        self.status_label.config(text=f"✅ {len(video_data)} videos removed from local list")
+        self.update_copy_button_state()
+    
+    def remove_from_youtube_playlist(self, video_data, dialog):
+        """Remove videos from actual YouTube playlist"""
+        if not self.is_authenticated:
+            messagebox.showerror("Error", "Authentication required for this operation!")
+            return
+        
+        # Confirmation dialog
+        confirm = messagebox.askyesno("Confirm Removal", 
+                                     f"⚠️ WARNING: This will permanently remove {len(video_data)} videos from your YouTube playlist!\n\n"
+                                     "This action cannot be undone. Are you sure?")
+        
+        if not confirm:
+            return
+        
+        dialog.destroy()
+        
+        # Show progress and start removal in thread
+        self.progress.start()
+        self.status_label.config(text="🗑️ Removing videos from YouTube playlist...")
+        
+        thread = threading.Thread(target=self._remove_from_playlist_thread, args=(video_data,))
+        thread.daemon = True
+        thread.start()
+    
+    def _remove_from_playlist_thread(self, video_data):
+        """Remove videos from YouTube playlist in thread"""
+        try:
+            playlist_url = self.url_entry.get().strip()
+            playlist_id = self.extract_playlist_id(playlist_url)
+            
+            removed_count = 0
+            failed_count = 0
+            
+            for i, video in enumerate(video_data):
+                try:
+                    self.root.after(0, lambda v=video, idx=i: 
+                                   self.status_label.config(text=f"🗑️ Removing {v['title'][:30]}... ({idx+1}/{len(video_data)})"))
+                    
+                    # Find playlist item ID
+                    playlist_item_id = self.find_playlist_item_id(playlist_id, video['video_id'])
+                    
+                    if playlist_item_id:
+                        # Remove from playlist
+                        self.authenticated_youtube.playlistItems().delete(id=playlist_item_id).execute()
+                        
+                        # Remove from local list
+                        self.root.after(0, lambda item=video['tree_item']: 
+                                       self.video_tree.delete(item) if self.video_tree.exists(item) else None)
+                        
+                        # Remove from found_4k_videos
+                        if video['url'] in self.found_4k_videos:
+                            self.found_4k_videos.remove(video['url'])
+                        
+                        removed_count += 1
+                    else:
+                        failed_count += 1
+                        
+                except Exception as e:
+                    print(f"Failed to remove video {video['video_id']}: {e}")
+                    failed_count += 1
+            
+            # Update UI
+            self.root.after(0, lambda: self.progress.stop())
+            self.root.after(0, lambda: self.update_copy_button_state())
+            
+            if removed_count > 0:
+                self.root.after(0, lambda: self.status_label.config(
+                    text=f"✅ {removed_count} videos removed from YouTube playlist" + 
+                         (f", {failed_count} failed" if failed_count > 0 else "")))
+                self.root.after(0, lambda: messagebox.showinfo("Success", 
+                                                               f"✅ Successfully removed {removed_count} videos from your YouTube playlist!" +
+                                                               (f"\n\n⚠️ {failed_count} videos could not be removed." if failed_count > 0 else "")))
+            else:
+                self.root.after(0, lambda: self.status_label.config(text="❌ No videos could be removed from playlist"))
+                self.root.after(0, lambda: messagebox.showerror("Error", "No videos could be removed from the playlist. Check your permissions."))
+                
+        except Exception as e:
+            self.root.after(0, lambda: self.progress.stop())
+            self.root.after(0, lambda: messagebox.showerror("Error", f"Failed to remove videos: {str(e)}"))
+    
+    def find_playlist_item_id(self, playlist_id, video_id):
+        """Find the playlist item ID for a specific video in a playlist"""
+        try:
+            next_page_token = None
+            
+            while True:
+                request = self.authenticated_youtube.playlistItems().list(
+                    part='id,contentDetails',
+                    playlistId=playlist_id,
+                    maxResults=50,
+                    pageToken=next_page_token
+                )
+                response = request.execute()
+                
+                for item in response['items']:
+                    if item['contentDetails']['videoId'] == video_id:
+                        return item['id']
+                
+                next_page_token = response.get('nextPageToken')
+                if not next_page_token:
+                    break
+                    
+        except Exception as e:
+            print(f"Error finding playlist item ID: {e}")
+        
+        return None
     
     def on_entry_change(self, event=None):
         """Entry değeri değiştiğinde slider'ı güncelle"""
@@ -905,7 +1451,7 @@ class YouTube4KCheckerGUI:
         return False
     
     def clear_all(self):
-        """Tüm verileri temizle"""
+        """Tüm verileri temizle (authentication hariç)"""
         self.url_entry.delete(0, tk.END)
         self.playlist_info_label.config(text="")  # Playlist bilgilerini temizle
         
@@ -919,6 +1465,7 @@ class YouTube4KCheckerGUI:
         self.check_all_btn.config(state='disabled')
         self.uncheck_all_btn.config(state='disabled')
         self.check_4k_only_btn.config(state='disabled')
+        self.remove_from_youtube_btn.config(state='disabled')
         self.found_4k_videos = []
         self.stop_requested = False
         self.thumbnail_cache.clear()  # Thumbnail önbelleğini temizle
@@ -926,6 +1473,9 @@ class YouTube4KCheckerGUI:
         
         if hasattr(self, 'video_details'):
             delattr(self, 'video_details')
+        
+        # Authentication durumunu koru - sadece UI'yi güncelle
+        self.update_auth_status()
 
 if __name__ == "__main__":
     root = tk.Tk()

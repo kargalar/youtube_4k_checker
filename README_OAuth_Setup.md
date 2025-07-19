@@ -6,25 +6,32 @@ OAuth2 credentials are already configured! You can now use all features includin
 
 ## How to Use
 
-### 1. **Check 4K Videos**
+### 1. **Authentication (First Time)**
+1. Click the "🔐 Login" button in the top-right corner
+2. A dialog will open - click "🌐 Open Browser for Authentication"
+3. Sign in with your Google account and authorize the app
+4. Copy the authorization code from the browser
+5. Paste it in the app and click "✅ Complete Authentication"
+6. Status will change to "🔐 Authenticated" (green)
+
+### 2. **Check 4K Videos**
 1. Enter a YouTube playlist URL
 2. Click "Get Videos" to fetch video list
 3. Click "Check 4K" to scan for 4K availability
 4. Use "Check 4K Only" to select only 4K videos
 
-### 2. **Copy Video URLs**
-1. Check the videos you want to copy (use checkboxes)
-2. Click "Copy Checked" to copy URLs to clipboard
-3. You'll get options to remove videos after copying
+### 3. **Copy and Remove Videos**
+1. Check the videos you want to copy/remove (use checkboxes)
+2. Click "Copy Checked" - this opens an options dialog:
+   - **📋 Just Copy (Done)** - Only copy URLs to clipboard
+   - **🗑️ Remove from Local List** - Remove from app view only
+   - **❌ Remove from YouTube Playlist** - Permanently remove from your YouTube playlist
 
-### 3. **Remove Videos from Playlist**
-1. After copying URLs, choose "Remove from YouTube Playlist"
-2. **First time**: Authentication dialog will appear
-3. Click "Open Browser for Authentication"
-4. Sign in with your Google account and authorize the app
-5. Copy the authorization code and paste it in the app
-6. Click "Complete Authentication"
-7. Confirm removal - videos will be permanently removed from your playlist
+### 4. **Right-Click Options**
+- Right-click any video for quick actions:
+  - Copy single video URL
+  - Remove from local list
+  - Remove from YouTube playlist (if authenticated)
 
 ## Authentication Status
 
@@ -43,11 +50,45 @@ OAuth2 credentials are already configured! You can now use all features includin
 - Everything above, plus:
 - **Remove videos from actual YouTube playlists**
 - Permanent playlist modification
+- Batch removal operations
 
 ## Important Notes
 
 ### **Security & Privacy**
 - ✅ OAuth2 credentials are already configured
+- 🔐 Your authentication is stored securely locally
+- 🚪 Use "Logout" to clear authentication
+- ⚠️ Only you can access your playlists
+
+### **Removal Operations**
+- ❌ **PERMANENT**: YouTube playlist removals cannot be undone
+- ✅ **CONFIRMATION**: App always asks for confirmation before removing
+- 🔄 **BATCH**: You can remove multiple videos at once
+- 📱 **SAFE**: Local list operations don't affect YouTube
+
+### **Troubleshooting**
+- If authentication fails, try logging out and in again
+- Make sure the playlist is owned by your account for removal
+- Some playlists may be read-only (like "Watch Later")
+
+## New Features Added
+
+### 🆕 **Google OAuth2 Integration**
+- Secure authentication with your Google account
+- Persistent login (stays logged in between sessions)
+- Easy logout option
+
+### 🆕 **YouTube Playlist Management**
+- Remove individual videos from playlists
+- Batch remove multiple selected videos
+- Confirmation dialogs prevent accidental deletions
+- Progress tracking for batch operations
+
+### 🆕 **Enhanced User Interface**
+- Authentication status indicator
+- Post-copy action options
+- Right-click context menus
+- Improved error handling and user feedback
 - ✅ Authentication is secure via Google's OAuth2 system
 - ✅ Only YouTube scope - no access to other Google services
 - ✅ Credentials are stored locally and encrypted
