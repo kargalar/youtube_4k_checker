@@ -13,6 +13,10 @@ import pickle
 from PIL import Image, ImageTk
 import io
 import webbrowser
+import urllib3
+
+# SSL uyarılarını devre dışı bırak
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class YouTube4KCheckerGUI:
     def __init__(self, root):
@@ -20,26 +24,26 @@ class YouTube4KCheckerGUI:
         self.root.title("YouTube 4K Video Checker")
         self.root.geometry("1200x900")
         
-        # Modern ultra-dark theme colors with vibrant accents
+        # Modern professional dark theme with sophisticated colors
         self.colors = {
-            'bg_primary': '#0a0a0a',      # Pure black base
-            'bg_secondary': '#121212',    # Very dark gray
-            'bg_tertiary': '#1e1e1e',     # Dark gray
-            'bg_hover': '#2d2d2d',        # Hover dark gray
-            'text_primary': '#ffffff',    # Pure white text
-            'text_secondary': '#b3b3b3',  # Light gray
-            'text_accent': '#00d4ff',     # Bright cyan
-            'accent_blue': '#1e90ff',     # Bright blue
-            'accent_green': '#00ff87',    # Neon green
-            'accent_orange': '#ff8c00',   # Dark orange
-            'accent_red': '#ff4757',      # Bright red
-            'accent_purple': '#9c88ff',   # Light purple
-            'accent_pink': '#ff6b9d',     # Pink
-            'accent_yellow': '#ffd700',   # Gold
-            'accent_cyan': '#00ffff',     # Cyan
-            'border': '#333333',          # Dark border
-            'gradient_start': '#667eea',  # Blue gradient start
-            'gradient_end': '#764ba2'     # Purple gradient end
+            'bg_primary': '#1a1a1a',      # Rich dark gray
+            'bg_secondary': '#242424',    # Medium dark gray  
+            'bg_tertiary': '#2d2d2d',     # Lighter dark gray
+            'bg_hover': '#383838',        # Hover state
+            'text_primary': '#f5f5f5',    # Soft white
+            'text_secondary': '#b8b8b8',  # Muted gray
+            'text_accent': '#6366f1',     # Professional indigo
+            'accent_blue': '#3b82f6',     # Clean blue
+            'accent_green': '#10b981',    # Professional emerald
+            'accent_orange': '#f59e0b',   # Warm amber
+            'accent_red': '#ef4444',      # Clean red
+            'accent_purple': '#8b5cf6',   # Sophisticated violet
+            'accent_pink': '#ec4899',     # Refined pink
+            'accent_yellow': '#eab308',   # Professional yellow
+            'accent_cyan': '#06b6d4',     # Modern cyan
+            'border': '#404040',          # Subtle border
+            'gradient_start': '#4f46e5',  # Indigo gradient
+            'gradient_end': '#7c3aed'     # Purple gradient
         }
         
         self.root.configure(bg=self.colors['bg_primary'])
@@ -393,57 +397,55 @@ class YouTube4KCheckerGUI:
         return url_frame
     
     def create_main_button_group(self, parent):
-        """Create Main Action Button Group - Ultra Dark Compact for left panel"""
-        # Container with ultra-dark styling
+        """Create Main Action Button Group - Modern Professional Design"""
+        # Container with modern minimalist styling
         container = tk.Frame(
             parent,
-            bg=self.colors['bg_tertiary'],
-            bd=1,
-            relief='solid',
-            highlightbackground=self.colors['border'],
-            highlightthickness=1
+            bg=self.colors['bg_secondary'],
+            bd=0,
+            relief='flat'
         )
         
-        # Title
+        # Title with refined styling
         title = tk.Label(
             container,
-            text="🎮 Main Actions",
-            font=('Segoe UI', 10, 'bold'),
-            bg=self.colors['bg_tertiary'],
-            fg=self.colors['accent_yellow']
+            text="Primary Actions",
+            font=('Segoe UI', 12, 'bold'),
+            bg=self.colors['bg_secondary'],
+            fg=self.colors['text_primary']
         )
-        title.pack(pady=(5, 3))
+        title.pack(pady=(12, 8))
         
-        # Button frame - use grid for compact layout
+        # Button frame with improved spacing
         button_frame = ttk.Frame(container, style='Dark.TFrame')
-        button_frame.pack(pady=(0, 5), padx=8, fill='x')
+        button_frame.pack(pady=(0, 12), padx=12, fill='x')
         
-        # Row 1: Main buttons
+        # Main action button - larger and more prominent
         self.get_videos_btn = ttk.Button(
             button_frame, 
-            text="📥 Get Videos & Check 4K",
+            text="Get Videos & Check 4K",
             command=self.get_videos, 
             style='Success.TButton'
         )
-        self.get_videos_btn.grid(row=0, column=0, columnspan=2, padx=2, pady=2, sticky='ew')
+        self.get_videos_btn.grid(row=0, column=0, columnspan=2, padx=0, pady=(0, 8), sticky='ew')
         
-        # Row 2: Control buttons
+        # Secondary control buttons
         self.stop_btn = ttk.Button(
             button_frame, 
-            text="⏹️ Stop",
+            text="Stop",
             command=self.stop_processing, 
             style='Danger.TButton',
             state='disabled'
         )
-        self.stop_btn.grid(row=1, column=0, padx=2, pady=2, sticky='ew')
+        self.stop_btn.grid(row=1, column=0, padx=(0, 4), pady=0, sticky='ew')
         
         self.clear_btn = ttk.Button(
             button_frame, 
-            text="🗑️ Clear",
+            text="Clear All",
             command=self.clear_all, 
             style='Dark.TButton'
         )
-        self.clear_btn.grid(row=1, column=1, padx=2, pady=2, sticky='ew')
+        self.clear_btn.grid(row=1, column=1, padx=(4, 0), pady=0, sticky='ew')
         
         # Configure grid weights for equal distribution
         button_frame.grid_columnconfigure(0, weight=1)
@@ -452,79 +454,77 @@ class YouTube4KCheckerGUI:
         return container
     
     def create_action_button_group(self, parent):
-        """Create Video Action Button Group - Ultra Dark Compact for left panel"""
-        # Container with ultra-dark styling
+        """Create Video Action Button Group - Modern Professional Design"""
+        # Container with modern minimalist styling
         container = tk.Frame(
             parent,
-            bg=self.colors['bg_tertiary'],
-            bd=1,
-            relief='solid',
-            highlightbackground=self.colors['border'],
-            highlightthickness=1
+            bg=self.colors['bg_secondary'],
+            bd=0,
+            relief='flat'
         )
         
-        # Title
+        # Title with refined styling
         title = tk.Label(
             container,
-            text="⚡ Video Actions",
-            font=('Segoe UI', 10, 'bold'),
-            bg=self.colors['bg_tertiary'],
-            fg=self.colors['accent_pink']
+            text="Video Actions",
+            font=('Segoe UI', 12, 'bold'),
+            bg=self.colors['bg_secondary'],
+            fg=self.colors['text_primary']
         )
-        title.pack(pady=(5, 3))
+        title.pack(pady=(12, 8))
         
-        # Button frame - use grid for compact layout
+        # Button frame with improved spacing
         button_frame = ttk.Frame(container, style='Dark.TFrame')
-        button_frame.pack(pady=(0, 5), padx=8, fill='x')
+        button_frame.pack(pady=(0, 12), padx=12, fill='x')
         
-        # Row 1: Selection buttons
+        # Row 1: Selection management
         self.check_all_btn = ttk.Button(
             button_frame, 
-            text="☑️ Check All",
+            text="Select All",
             command=self.check_all_videos, 
-            style='Success.TButton',
+            style='Neon.TButton',
             state='disabled'
         )
-        self.check_all_btn.grid(row=0, column=0, padx=2, pady=2, sticky='ew')
+        self.check_all_btn.grid(row=0, column=0, padx=(0, 4), pady=(0, 6), sticky='ew')
         
         self.uncheck_all_btn = ttk.Button(
             button_frame, 
-            text="☐ Uncheck All",
+            text="Select None",
             command=self.uncheck_all_videos, 
             style='Dark.TButton',
             state='disabled'
         )
-        self.uncheck_all_btn.grid(row=0, column=1, padx=2, pady=2, sticky='ew')
+        self.uncheck_all_btn.grid(row=0, column=1, padx=(4, 0), pady=(0, 6), sticky='ew')
         
-        # Row 2: Special selection
+        # Row 2: Smart selection
         self.check_4k_only_btn = ttk.Button(
             button_frame, 
-            text="✨ Check 4K Only",
+            text="Select 4K Only",
             command=self.check_4k_only, 
-            style='Neon.TButton',
+            style='Gradient.TButton',
             state='disabled'
         )
-        self.check_4k_only_btn.grid(row=1, column=0, columnspan=2, padx=2, pady=2, sticky='ew')
+        self.check_4k_only_btn.grid(row=1, column=0, columnspan=2, padx=0, pady=(0, 6), sticky='ew')
         
-        # Row 3: Action buttons
+        # Row 3: Actions
         self.copy_btn = ttk.Button(
             button_frame, 
-            text="📋 Copy Checked",
+            text="Copy URLs",
             command=self.copy_checked_urls, 
             style='Neon.TButton',
             state='disabled'
         )
-        self.copy_btn.grid(row=2, column=0, padx=2, pady=2, sticky='ew')
+        self.copy_btn.grid(row=2, column=0, padx=(0, 4), pady=0, sticky='ew')
         
         # YouTube removal button
         self.remove_from_youtube_btn = ttk.Button(
             button_frame, 
-            text="🚀 Remove from YouTube",
+            text="Remove from YouTube",
             command=self.remove_checked_from_youtube, 
-            style='Gradient.TButton',
+            style='Warning.TButton',
             state='disabled'
         )
-        self.remove_from_youtube_btn.grid(row=2, column=1, padx=2, pady=2, sticky='ew')
+        self.remove_from_youtube_btn.grid(row=2, column=1, padx=(4, 0), pady=0, sticky='ew')
         
         # Configure grid weights for equal distribution
         button_frame.grid_columnconfigure(0, weight=1)
@@ -675,10 +675,10 @@ class YouTube4KCheckerGUI:
         
         self.status_label = tk.Label(
             status_container,
-            text="💫 Enter playlist URL and click 'Get Videos' to start! 💫",
-            font=('Segoe UI', 11, 'italic'),
+            text="Enter playlist URL and click 'Get Videos' to start",
+            font=('Segoe UI', 11, 'normal'),
             bg=self.colors['bg_primary'],
-            fg=self.colors['text_accent'],
+            fg=self.colors['text_secondary'],
             pady=8
         )
         self.status_label.pack()
@@ -694,7 +694,7 @@ class YouTube4KCheckerGUI:
     def update_video_count(self, count):
         """Update video count in the header"""
         if hasattr(self, 'video_count_label'):
-            self.video_count_label.config(text=f"🎬✨ Videos Found: {count} ✨🎬")
+            self.video_count_label.config(text=f"{count} videos found")
     
     def setup_dark_theme(self):
         """Configure ultra-dark theme for ttk widgets"""
@@ -747,75 +747,75 @@ class YouTube4KCheckerGUI:
         style.configure('Dark.TButton',
                        background=self.colors['bg_tertiary'],
                        foreground=self.colors['text_primary'],
-                       borderwidth=1,
-                       relief='solid',
+                       borderwidth=0,
+                       relief='flat',
                        focuscolor='none',
-                       font=('Segoe UI', 10, 'bold'))
+                       font=('Segoe UI', 10, 'normal'))
         
         style.map('Dark.TButton',
                  background=[('active', self.colors['bg_hover']),
-                           ('pressed', self.colors['bg_hover'])])
+                           ('pressed', '#4a4a4a')])
         
         style.configure('Success.TButton',
                        background=self.colors['accent_green'],
-                       foreground=self.colors['bg_primary'],
-                       borderwidth=1,
-                       relief='solid',
+                       foreground='#ffffff',
+                       borderwidth=0,
+                       relief='flat',
                        focuscolor='none',
                        font=('Segoe UI', 10, 'bold'))
         
         style.map('Success.TButton',
-                 background=[('active', '#00e67a'),
-                           ('pressed', '#00cc6a')])
+                 background=[('active', '#059669'),
+                           ('pressed', '#047857')])
         
         style.configure('Warning.TButton',
                        background=self.colors['accent_orange'],
-                       foreground=self.colors['text_primary'],
-                       borderwidth=1,
-                       relief='solid',
+                       foreground='#ffffff',
+                       borderwidth=0,
+                       relief='flat',
                        focuscolor='none',
                        font=('Segoe UI', 10, 'bold'))
         
         style.map('Warning.TButton',
-                 background=[('active', '#ff9500'),
-                           ('pressed', '#e67e00')])
+                 background=[('active', '#d97706'),
+                           ('pressed', '#b45309')])
         
         style.configure('Danger.TButton',
                        background=self.colors['accent_red'],
-                       foreground=self.colors['text_primary'],
-                       borderwidth=1,
-                       relief='solid',
+                       foreground='#ffffff',
+                       borderwidth=0,
+                       relief='flat',
                        focuscolor='none',
                        font=('Segoe UI', 10, 'bold'))
         
         style.map('Danger.TButton',
-                 background=[('active', '#ff6b7d'),
-                           ('pressed', '#ff2d55')])
+                 background=[('active', '#dc2626'),
+                           ('pressed', '#b91c1c')])
         
-        # Modern button styles with ultra-dark theme
+        # Modern button styles with professional appearance
         style.configure('Gradient.TButton',
                        background=self.colors['accent_purple'],
-                       foreground=self.colors['text_primary'],
-                       borderwidth=1,
-                       relief='solid',
+                       foreground='#ffffff',
+                       borderwidth=0,
+                       relief='flat',
                        focuscolor='none',
                        font=('Segoe UI', 10, 'bold'))
         
         style.map('Gradient.TButton',
-                 background=[('active', '#b19aff'),
-                           ('pressed', '#8b76ff')])
+                 background=[('active', '#7c3aed'),
+                           ('pressed', '#6d28d9')])
         
         style.configure('Neon.TButton',
                        background=self.colors['accent_cyan'],
-                       foreground=self.colors['bg_primary'],
-                       borderwidth=1,
-                       relief='solid',
+                       foreground='#ffffff',
+                       borderwidth=0,
+                       relief='flat',
                        focuscolor='none',
                        font=('Segoe UI', 10, 'bold'))
         
         style.map('Neon.TButton',
-                 background=[('active', '#33ffff'),
-                           ('pressed', '#00e6e6')])
+                 background=[('active', '#0891b2'),
+                           ('pressed', '#0e7490')])
         
         style.configure('Dark.Horizontal.TProgressbar',
                        background=self.colors['accent_green'],
@@ -831,12 +831,12 @@ class YouTube4KCheckerGUI:
         main_container = ttk.Frame(self.root, style='Dark.TFrame')
         main_container.pack(fill='both', expand=True, padx=20, pady=20)
         
-        # Ana başlık - modern gradient text effect
-        title_label = tk.Label(main_container, text="🎬✨ YouTube 4K Video Checker ✨🎬", 
-                              font=('Segoe UI', 20, 'bold'), 
+        # Ana başlık - clean and professional
+        title_label = tk.Label(main_container, text="YouTube 4K Video Checker", 
+                              font=('Segoe UI', 24, 'normal'), 
                               bg=self.colors['bg_primary'], 
-                              fg=self.colors['accent_cyan'])
-        title_label.pack(pady=(0, 15))
+                              fg=self.colors['text_primary'])
+        title_label.pack(pady=(0, 20))
         
         # Main layout container - split into left and right
         layout_container = ttk.Frame(main_container, style='Dark.TFrame')
@@ -846,52 +846,50 @@ class YouTube4KCheckerGUI:
         left_panel = tk.Frame(
             layout_container,
             bg=self.colors['bg_secondary'],
-            bd=1,
-            relief='solid',
-            highlightbackground=self.colors['border'],
-            highlightthickness=1,
+            bd=0,
+            relief='flat',
             width=450  # Fixed width for left panel
         )
-        left_panel.pack(side='left', fill='y', padx=(0, 8))
+        left_panel.pack(side='left', fill='y', padx=(0, 12))
         left_panel.pack_propagate(False)  # Maintain fixed width
         
-        # Left panel content with padding
+        # Left panel content with improved padding
         left_content = ttk.Frame(left_panel, style='Dark.TFrame')
-        left_content.pack(fill='both', expand=True, padx=12, pady=12)
+        left_content.pack(fill='both', expand=True, padx=16, pady=16)
         
-        # Authentication Widget (Modern Widget Approach)
+        # Authentication Section
         auth_section = tk.Label(
             left_content,
-            text="🔐 Authentication",
+            text="Authentication",
             font=('Segoe UI', 14, 'bold'),
             bg=self.colors['bg_secondary'],
-            fg=self.colors['accent_green']
+            fg=self.colors['text_primary']
         )
         auth_section.pack(anchor='w', pady=(0, 8))
         
         self.auth_widget = self.create_auth_widget(left_content)
-        self.auth_widget.pack(pady=(0, 20), fill='x')
+        self.auth_widget.pack(pady=(0, 24), fill='x')
         
-        # Playlist Input Widget (Modern Widget Approach)
+        # Playlist Section
         playlist_section = tk.Label(
             left_content,
-            text="🎵 Playlist Settings",
+            text="Playlist Settings",
             font=('Segoe UI', 14, 'bold'),
             bg=self.colors['bg_secondary'],
-            fg=self.colors['accent_cyan']
+            fg=self.colors['text_primary']
         )
         playlist_section.pack(anchor='w', pady=(0, 8))
         
         self.playlist_widget = self.create_playlist_input_widget(left_content)
-        self.playlist_widget.pack(pady=(0, 20), fill='x')
+        self.playlist_widget.pack(pady=(0, 24), fill='x')
         
         # Video Limit Section
         limit_section = tk.Label(
             left_content,
-            text="⚙️ Video Limit",
+            text="Video Limit",
             font=('Segoe UI', 14, 'bold'),
             bg=self.colors['bg_secondary'],
-            fg=self.colors['accent_orange']
+            fg=self.colors['text_primary']
         )
         limit_section.pack(anchor='w', pady=(0, 8))
         
@@ -1007,27 +1005,27 @@ class YouTube4KCheckerGUI:
         # Actions Section
         actions_section = tk.Label(
             left_content,
-            text="🎮 Actions",
+            text="Actions",
             font=('Segoe UI', 14, 'bold'),
             bg=self.colors['bg_secondary'],
-            fg=self.colors['accent_yellow']
+            fg=self.colors['text_primary']
         )
-        actions_section.pack(anchor='w', pady=(20, 8))
+        actions_section.pack(anchor='w', pady=(24, 8))
         
-        # Modern Button Groups (Widget Approach)
+        # Modern Button Groups
         self.main_buttons = self.create_main_button_group(left_content)
-        self.main_buttons.pack(pady=(0, 8), fill='x')
+        self.main_buttons.pack(pady=(0, 12), fill='x')
         
         self.action_buttons = self.create_action_button_group(left_content)
-        self.action_buttons.pack(pady=(0, 15), fill='x')
+        self.action_buttons.pack(pady=(0, 24), fill='x')
         
-        # Modern Status Bar Widget
+        # Status Section
         status_section = tk.Label(
             left_content,
-            text="📊 Status",
+            text="Status",
             font=('Segoe UI', 14, 'bold'),
             bg=self.colors['bg_secondary'],
-            fg=self.colors['accent_purple']
+            fg=self.colors['text_primary']
         )
         status_section.pack(anchor='w', pady=(0, 8))
         
@@ -1038,44 +1036,42 @@ class YouTube4KCheckerGUI:
         right_panel = tk.Frame(
             layout_container,
             bg=self.colors['bg_secondary'],
-            bd=1,
-            relief='solid',
-            highlightbackground=self.colors['border'],
-            highlightthickness=1
+            bd=0,
+            relief='flat'
         )
         right_panel.pack(side='right', fill='both', expand=True)
         
         # Right panel header
         right_header = tk.Frame(
             right_panel,
-            bg=self.colors['bg_tertiary'],
-            height=50
+            bg=self.colors['bg_secondary'],
+            height=60
         )
-        right_header.pack(fill='x', padx=2, pady=(2, 0))
+        right_header.pack(fill='x', padx=16, pady=(16, 0))
         right_header.pack_propagate(False)
         
         list_title = tk.Label(
             right_header,
-            text="📺 Video List",
-            font=('Segoe UI', 16, 'bold'),
-            bg=self.colors['bg_tertiary'],
-            fg=self.colors['text_accent']
+            text="Video List",
+            font=('Segoe UI', 18, 'normal'),
+            bg=self.colors['bg_secondary'],
+            fg=self.colors['text_primary']
         )
-        list_title.pack(side='left', padx=15, pady=15)
+        list_title.pack(side='left', pady=20)
         
-        # Video count in header
+        # Video count in header - cleaner styling
         self.video_count_label = tk.Label(
             right_header,
-            text="🎬✨ Videos Found: 0 ✨🎬",
-            font=('Segoe UI', 12, 'bold'),
-            bg=self.colors['bg_tertiary'],
-            fg=self.colors['accent_green']
+            text="No videos loaded",
+            font=('Segoe UI', 12, 'normal'),
+            bg=self.colors['bg_secondary'],
+            fg=self.colors['text_secondary']
         )
-        self.video_count_label.pack(side='right', padx=15, pady=15)
+        self.video_count_label.pack(side='right', pady=20)
         
-        # Modern Video List Widget (without header since we have it above)
+        # Modern Video List Widget
         self.video_list_widget = self.create_video_list_widget_no_header(right_panel)
-        self.video_list_widget.pack(fill='both', expand=True, padx=2, pady=(0, 2))
+        self.video_list_widget.pack(fill='both', expand=True, padx=16, pady=(0, 16))
     
     def create_video_list_widget_no_header(self, parent):
         """Create Modern Video List Widget without header (for right panel) - Ultra Dark"""
@@ -1924,6 +1920,11 @@ class YouTube4KCheckerGUI:
             # GUI'yi güncelle
             self.root.after(0, self._update_video_list)
             
+            # Video yükleme işlemi tamamlandı - is_processing'i false yap
+            self.is_processing = False
+            self.progress.stop()
+            self.get_videos_btn.config(state='normal')
+            
             # Videos successfully loaded, now automatically start 4K checking
             if hasattr(self, 'video_details') and self.video_details:
                 self.root.after(0, lambda: self.status_label.config(text="✨ Videos loaded successfully! Starting 4K check..."))
@@ -1938,11 +1939,16 @@ class YouTube4KCheckerGUI:
     
     def _start_4k_check_automatically(self):
         """Otomatik olarak 4K kontrolünü başlat"""
-        if not self.is_processing and hasattr(self, 'video_details') and self.video_details:
+        if hasattr(self, 'video_details') and self.video_details and not self.is_processing:
+            self.root.after(0, lambda: self.status_label.config(text="🔍 Starting automatic 4K check..."))
             # Start 4K checking thread
             thread = threading.Thread(target=self._check_4k_thread)
             thread.daemon = True
             thread.start()
+        else:
+            # Eğer hala processing ise, biraz daha bekle
+            if hasattr(self, 'video_details') and self.video_details:
+                self.root.after(500, self._start_4k_check_automatically)
     
     def _update_video_list(self):
         """Video listesini güncelle"""
@@ -2260,20 +2266,27 @@ class YouTube4KCheckerGUI:
             messagebox.showinfo("Result", "😔 No 4K videos found.\n\nThis playlist doesn't have 4K quality videos.")
     
     def check_4k_availability(self, video_url):
-        """4K kalite kontrolü"""
+        """4K kalite kontrolü - SSL hatası düzeltildi"""
         try:
             headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
-            response = requests.get(video_url, headers=headers, timeout=10)
+            
+            # SSL sertifika doğrulamasını devre dışı bırak
+            response = requests.get(video_url, headers=headers, timeout=10, verify=False)
             
             if '2160p' in response.text or '"quality":"hd2160"' in response.text:
                 return True
             
             if '"qualityLabel":"2160p"' in response.text:
                 return True
+            
+            # Alternatif kontrol yöntemleri
+            if 'itag=313' in response.text or 'itag=315' in response.text:
+                return True
                 
-        except:
+        except Exception as e:
+            print(f"4K check error for {video_url}: {e}")
             pass
         
         return False
@@ -2281,13 +2294,12 @@ class YouTube4KCheckerGUI:
     def clear_all(self):
         """Tüm verileri temizle (authentication hariç)"""
         self.url_entry.delete(0, tk.END)
-        self.playlist_info_label.config(text="")  # Playlist bilgilerini temizle
+        self.playlist_info_label.config(text="💡 Enter a YouTube playlist URL above to get started...")  # Playlist bilgilerini temizle
         
         for item in self.video_tree.get_children():
             self.video_tree.delete(item)
         
-        self.status_label.config(text="Enter playlist URL and click 'Get Videos'")
-        self.check_4k_btn.config(state='disabled')
+        self.status_label.config(text="Enter playlist URL and click 'Get Videos' to start")
         self.stop_btn.config(state='disabled')
         self.copy_btn.config(state='disabled')
         self.check_all_btn.config(state='disabled')
@@ -2296,6 +2308,9 @@ class YouTube4KCheckerGUI:
         self.remove_from_youtube_btn.config(state='disabled')
         self.found_4k_videos = []
         self.stop_requested = False
+        
+        # Update video count
+        self.update_video_count(0)
         self.thumbnail_cache.clear()  # Thumbnail önbelleğini temizle
         self.thumbnail_refs.clear()   # Thumbnail referanslarını temizle
         
