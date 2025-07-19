@@ -20,19 +20,26 @@ class YouTube4KCheckerGUI:
         self.root.title("YouTube 4K Video Checker")
         self.root.geometry("1200x900")
         
-        # Dark theme colors
+        # Modern ultra-dark theme colors with vibrant accents
         self.colors = {
-            'bg_primary': '#1e1e1e',
-            'bg_secondary': '#2d2d2d',
-            'bg_tertiary': '#3c3c3c',
-            'text_primary': '#ffffff',
-            'text_secondary': '#b3b3b3',
-            'accent_blue': '#0078d4',
-            'accent_green': '#107c10',
-            'accent_orange': '#ff8c00',
-            'accent_red': '#d13438',
-            'accent_purple': '#8b5cf6',
-            'border': '#404040'
+            'bg_primary': '#0a0a0a',      # Pure black base
+            'bg_secondary': '#121212',    # Very dark gray
+            'bg_tertiary': '#1e1e1e',     # Dark gray
+            'bg_hover': '#2d2d2d',        # Hover dark gray
+            'text_primary': '#ffffff',    # Pure white text
+            'text_secondary': '#b3b3b3',  # Light gray
+            'text_accent': '#00d4ff',     # Bright cyan
+            'accent_blue': '#1e90ff',     # Bright blue
+            'accent_green': '#00ff87',    # Neon green
+            'accent_orange': '#ff8c00',   # Dark orange
+            'accent_red': '#ff4757',      # Bright red
+            'accent_purple': '#9c88ff',   # Light purple
+            'accent_pink': '#ff6b9d',     # Pink
+            'accent_yellow': '#ffd700',   # Gold
+            'accent_cyan': '#00ffff',     # Cyan
+            'border': '#333333',          # Dark border
+            'gradient_start': '#667eea',  # Blue gradient start
+            'gradient_end': '#764ba2'     # Purple gradient end
         }
         
         self.root.configure(bg=self.colors['bg_primary'])
@@ -261,44 +268,462 @@ class YouTube4KCheckerGUI:
         """Authentication status'unu güncelle"""
         if hasattr(self, 'auth_status_label'):
             if self.is_authenticated:
-                self.auth_status_label.config(text="🔐 Authenticated", fg=self.colors['accent_green'])
+                self.auth_status_label.config(text="✨ 🔐 Authenticated & Ready! ✨", fg=self.colors['accent_green'],
+                                             font=('Segoe UI', 12, 'bold'))
                 self.auth_btn.config(text="🚪 Logout", command=self.logout_oauth, style='Warning.TButton')
                 # YouTube removal butonunu aktif et
                 if hasattr(self, 'remove_from_youtube_btn'):
                     self.remove_from_youtube_btn.config(state='normal')
             else:
-                self.auth_status_label.config(text="⚠️ Not Authenticated", fg=self.colors['accent_orange'])
+                self.auth_status_label.config(text="⚠️ Authentication Required", fg=self.colors['accent_orange'],
+                                             font=('Segoe UI', 12, 'bold'))
                 self.auth_btn.config(text="🔐 Login", command=self.start_oauth_flow, style='Success.TButton')
                 # YouTube removal butonunu deaktif et
                 if hasattr(self, 'remove_from_youtube_btn'):
                     self.remove_from_youtube_btn.config(state='disabled')
 
+    def create_auth_widget(self, parent):
+        """Create Authentication Widget (Modern Widget Approach)"""
+        # Main frame
+        auth_frame = ttk.Frame(parent, style='Dark.TFrame')
+        
+        # Left side - status
+        auth_left_frame = ttk.Frame(auth_frame, style='Dark.TFrame')
+        auth_left_frame.pack(side='left')
+        
+        self.auth_status_label = tk.Label(
+            auth_left_frame, 
+            text="⚠️ Authentication Required",
+            font=('Segoe UI', 12, 'bold'),
+            bg=self.colors['bg_primary'],
+            fg=self.colors['accent_orange']
+        )
+        self.auth_status_label.pack(side='left')
+        
+        # Right side - button  
+        auth_right_frame = ttk.Frame(auth_frame, style='Dark.TFrame')
+        auth_right_frame.pack(side='right')
+        
+        self.auth_btn = ttk.Button(
+            auth_right_frame,
+            text="🔐 Login",
+            command=self.start_oauth_flow,
+            style='Success.TButton'
+        )
+        self.auth_btn.pack(side='right')
+        
+        # Update status
+        self.update_auth_status()
+        
+        return auth_frame
+    
+    def create_playlist_input_widget(self, parent):
+        """Create Playlist Input Widget (Modern Widget Approach)"""
+        # Main frame
+        url_frame = ttk.Frame(parent, style='Dark.TFrame')
+        
+        # Title with modern styling
+        title_label = tk.Label(
+            url_frame,
+            text="🎵 Playlist URL",
+            font=('Segoe UI', 13, 'bold'),
+            bg=self.colors['bg_primary'],
+            fg=self.colors['accent_cyan']
+        )
+        title_label.pack(anchor='w', pady=(0, 8))
+        
+        # Input container with modern border
+        input_container = tk.Frame(
+            url_frame,
+            bg=self.colors['accent_cyan'],
+            bd=1,
+            relief='solid'
+        )
+        input_container.pack(fill='x', pady=(0, 10))
+        
+        # Input frame inside container
+        url_input_frame = ttk.Frame(input_container, style='Dark.TFrame')
+        url_input_frame.pack(fill='x', padx=2, pady=2)
+        
+        # URL Entry with enhanced styling
+        self.url_entry = ttk.Entry(
+            url_input_frame,
+            font=('Segoe UI', 11),
+            style='Dark.TEntry',
+            width=60
+        )
+        self.url_entry.pack(side='left', fill='x', expand=True, padx=(5, 0), pady=3)
+        
+        # Modern paste button
+        paste_btn = ttk.Button(
+            url_input_frame,
+            text="📋 Paste",
+            command=self.paste_url,
+            style='Neon.TButton'
+        )
+        paste_btn.pack(side='right', padx=(10, 5), pady=3)
+        
+        # Playlist info with enhanced styling
+        info_container = tk.Frame(
+            url_frame,
+            bg=self.colors['bg_tertiary'],
+            bd=1,
+            relief='solid'
+        )
+        info_container.pack(fill='x', pady=(0, 10))
+        
+        self.playlist_info_frame = ttk.Frame(info_container, style='Dark.TFrame')
+        self.playlist_info_frame.pack(fill='x', padx=10, pady=8)
+        
+        self.playlist_info_label = tk.Label(
+            self.playlist_info_frame,
+            text="💡 Enter a YouTube playlist URL above to get started...",
+            font=('Segoe UI', 10, 'italic'),
+            bg=self.colors['bg_tertiary'],
+            fg=self.colors['text_secondary'],
+            wraplength=800,
+            justify='left'
+        )
+        self.playlist_info_label.pack(anchor='w')
+        
+        # Bind events
+        self.url_entry.bind('<KeyRelease>', self.on_url_change)
+        self.url_entry.bind('<FocusOut>', self.on_url_change)
+        
+        return url_frame
+    
+    def create_main_button_group(self, parent):
+        """Create Main Action Button Group - Ultra Dark Compact for left panel"""
+        # Container with ultra-dark styling
+        container = tk.Frame(
+            parent,
+            bg=self.colors['bg_tertiary'],
+            bd=1,
+            relief='solid',
+            highlightbackground=self.colors['border'],
+            highlightthickness=1
+        )
+        
+        # Title
+        title = tk.Label(
+            container,
+            text="🎮 Main Actions",
+            font=('Segoe UI', 10, 'bold'),
+            bg=self.colors['bg_tertiary'],
+            fg=self.colors['accent_yellow']
+        )
+        title.pack(pady=(5, 3))
+        
+        # Button frame - use grid for compact layout
+        button_frame = ttk.Frame(container, style='Dark.TFrame')
+        button_frame.pack(pady=(0, 5), padx=8, fill='x')
+        
+        # Row 1: Main buttons
+        self.get_videos_btn = ttk.Button(
+            button_frame, 
+            text="📥 Get Videos & Check 4K",
+            command=self.get_videos, 
+            style='Success.TButton'
+        )
+        self.get_videos_btn.grid(row=0, column=0, columnspan=2, padx=2, pady=2, sticky='ew')
+        
+        # Row 2: Control buttons
+        self.stop_btn = ttk.Button(
+            button_frame, 
+            text="⏹️ Stop",
+            command=self.stop_processing, 
+            style='Danger.TButton',
+            state='disabled'
+        )
+        self.stop_btn.grid(row=1, column=0, padx=2, pady=2, sticky='ew')
+        
+        self.clear_btn = ttk.Button(
+            button_frame, 
+            text="🗑️ Clear",
+            command=self.clear_all, 
+            style='Dark.TButton'
+        )
+        self.clear_btn.grid(row=1, column=1, padx=2, pady=2, sticky='ew')
+        
+        # Configure grid weights for equal distribution
+        button_frame.grid_columnconfigure(0, weight=1)
+        button_frame.grid_columnconfigure(1, weight=1)
+        
+        return container
+    
+    def create_action_button_group(self, parent):
+        """Create Video Action Button Group - Ultra Dark Compact for left panel"""
+        # Container with ultra-dark styling
+        container = tk.Frame(
+            parent,
+            bg=self.colors['bg_tertiary'],
+            bd=1,
+            relief='solid',
+            highlightbackground=self.colors['border'],
+            highlightthickness=1
+        )
+        
+        # Title
+        title = tk.Label(
+            container,
+            text="⚡ Video Actions",
+            font=('Segoe UI', 10, 'bold'),
+            bg=self.colors['bg_tertiary'],
+            fg=self.colors['accent_pink']
+        )
+        title.pack(pady=(5, 3))
+        
+        # Button frame - use grid for compact layout
+        button_frame = ttk.Frame(container, style='Dark.TFrame')
+        button_frame.pack(pady=(0, 5), padx=8, fill='x')
+        
+        # Row 1: Selection buttons
+        self.check_all_btn = ttk.Button(
+            button_frame, 
+            text="☑️ Check All",
+            command=self.check_all_videos, 
+            style='Success.TButton',
+            state='disabled'
+        )
+        self.check_all_btn.grid(row=0, column=0, padx=2, pady=2, sticky='ew')
+        
+        self.uncheck_all_btn = ttk.Button(
+            button_frame, 
+            text="☐ Uncheck All",
+            command=self.uncheck_all_videos, 
+            style='Dark.TButton',
+            state='disabled'
+        )
+        self.uncheck_all_btn.grid(row=0, column=1, padx=2, pady=2, sticky='ew')
+        
+        # Row 2: Special selection
+        self.check_4k_only_btn = ttk.Button(
+            button_frame, 
+            text="✨ Check 4K Only",
+            command=self.check_4k_only, 
+            style='Neon.TButton',
+            state='disabled'
+        )
+        self.check_4k_only_btn.grid(row=1, column=0, columnspan=2, padx=2, pady=2, sticky='ew')
+        
+        # Row 3: Action buttons
+        self.copy_btn = ttk.Button(
+            button_frame, 
+            text="📋 Copy Checked",
+            command=self.copy_checked_urls, 
+            style='Neon.TButton',
+            state='disabled'
+        )
+        self.copy_btn.grid(row=2, column=0, padx=2, pady=2, sticky='ew')
+        
+        # YouTube removal button
+        self.remove_from_youtube_btn = ttk.Button(
+            button_frame, 
+            text="🚀 Remove from YouTube",
+            command=self.remove_checked_from_youtube, 
+            style='Gradient.TButton',
+            state='disabled'
+        )
+        self.remove_from_youtube_btn.grid(row=2, column=1, padx=2, pady=2, sticky='ew')
+        
+        # Configure grid weights for equal distribution
+        button_frame.grid_columnconfigure(0, weight=1)
+        button_frame.grid_columnconfigure(1, weight=1)
+        
+        return container
+    
+    def create_video_list_widget(self, parent):
+        """Create Modern Video List Widget"""
+        # Main container with gradient border
+        container = tk.Frame(
+            parent,
+            bg=self.colors['accent_purple'],
+            bd=3,
+            relief='solid'
+        )
+        
+        # Inner frame
+        list_frame = ttk.Frame(container, style='Dark.TFrame')
+        list_frame.pack(fill='both', expand=True, padx=3, pady=3)
+        
+        # Header with modern styling
+        header_frame = tk.Frame(
+            list_frame,
+            bg=self.colors['bg_tertiary'],
+            height=50
+        )
+        header_frame.pack(fill='x', pady=(0, 10))
+        header_frame.pack_propagate(False)
+        
+        # Video count and header
+        self.video_count_label = tk.Label(
+            header_frame,
+            text="🎬✨ Videos Found: 0 ✨🎬",
+            font=('Segoe UI', 14, 'bold'),
+            bg=self.colors['bg_tertiary'],
+            fg=self.colors['accent_cyan']
+        )
+        self.video_count_label.pack(expand=True)
+        
+        # Tree container with enhanced styling
+        tree_container = tk.Frame(
+            list_frame,
+            bg=self.colors['accent_cyan'],
+            bd=2,
+            relief='solid'
+        )
+        tree_container.pack(fill='both', expand=True)
+        
+        # Treeview frame
+        tree_frame = ttk.Frame(tree_container, style='Dark.TFrame')
+        tree_frame.pack(fill='both', expand=True, padx=2, pady=2)
+        
+        # Enhanced TreeView
+        columns = ('Check', 'No', 'Thumbnail', 'Title', 'Quality', 'Status')
+        self.video_tree = ttk.Treeview(
+            tree_frame, 
+            columns=columns, 
+            show='headings',
+            height=15, 
+            style='Dark.Treeview'
+        )
+        
+        # Modern column headers with enhanced styling
+        headers = {
+            'Check': '☑️ Select',
+            'No': '#️⃣ No',
+            'Thumbnail': '🖼️ Preview',
+            'Title': '🎬 Video Title',
+            'Quality': '📺 Quality',
+            'Status': '✨ 4K Status'
+        }
+        
+        for col, header_text in headers.items():
+            self.video_tree.heading(col, text=header_text)
+        
+        # Enhanced column widths
+        widths = {
+            'Check': (60, 60),
+            'No': (50, 50),
+            'Thumbnail': (90, 90),
+            'Title': (420, 200),
+            'Quality': (100, 100),
+            'Status': (140, 140)
+        }
+        
+        for col, (width, minwidth) in widths.items():
+            self.video_tree.column(col, width=width, minwidth=minwidth)
+        
+        # Modern scrollbar
+        scrollbar = ttk.Scrollbar(
+            tree_frame,
+            orient='vertical',
+            command=self.video_tree.yview
+        )
+        self.video_tree.configure(yscrollcommand=scrollbar.set)
+        
+        # Pack with enhanced layout
+        self.video_tree.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y')
+        
+        # Bind events
+        self.video_tree.bind('<Button-3>', self.show_context_menu)  # Right-click
+        self.video_tree.bind('<Button-1>', self.on_tree_click)  # Left-click
+        
+        # Create context menu
+        self.create_context_menu()
+        
+        # Bind limit entry event
+        self.limit_entry.bind('<KeyRelease>', self.on_entry_change)
+        
+        return container
+    
+    def create_status_widget(self, parent):
+        """Create Modern Status Widget - Ultra Dark"""
+        # Container with ultra-dark styling
+        container = tk.Frame(
+            parent,
+            bg=self.colors['bg_tertiary'],
+            bd=1,
+            relief='solid',
+            highlightbackground=self.colors['border'],
+            highlightthickness=1
+        )
+        
+        # Inner frame
+        progress_frame = ttk.Frame(container, style='Dark.TFrame')
+        progress_frame.pack(fill='x', padx=3, pady=3)
+        
+        # Enhanced progress bar
+        self.progress = ttk.Progressbar(
+            progress_frame,
+            mode='indeterminate',
+            style='Dark.Horizontal.TProgressbar'
+        )
+        self.progress.pack(fill='x', pady=(0, 8))
+        
+        # Status message with ultra-dark styling
+        status_container = tk.Frame(
+            progress_frame,
+            bg=self.colors['bg_primary'],
+            bd=1,
+            relief='solid',
+            highlightbackground=self.colors['border'],
+            highlightthickness=1
+        )
+        status_container.pack(fill='x')
+        
+        self.status_label = tk.Label(
+            status_container,
+            text="💫 Enter playlist URL and click 'Get Videos' to start! 💫",
+            font=('Segoe UI', 11, 'italic'),
+            bg=self.colors['bg_primary'],
+            fg=self.colors['text_accent'],
+            pady=8
+        )
+        self.status_label.pack()
+        
+        return container
+    
+    def update_status(self, message, color=None):
+        """Update status message with optional color"""
+        if color is None:
+            color = self.colors['text_accent']
+        self.status_label.config(text=message, fg=color)
+    
+    def update_video_count(self, count):
+        """Update video count in the header"""
+        if hasattr(self, 'video_count_label'):
+            self.video_count_label.config(text=f"🎬✨ Videos Found: {count} ✨🎬")
+    
     def setup_dark_theme(self):
-        """Configure dark theme for ttk widgets"""
+        """Configure ultra-dark theme for ttk widgets"""
         style = ttk.Style()
         
         # Configure treeview style
         style.theme_use('clam')
         
-        # Configure styles for different widgets
+        # Configure styles for different widgets with ultra-dark theme
         style.configure('Dark.Treeview',
-                       background=self.colors['bg_secondary'],
+                       background=self.colors['bg_primary'],
                        foreground=self.colors['text_primary'],
-                       fieldbackground=self.colors['bg_secondary'],
+                       fieldbackground=self.colors['bg_primary'],
                        borderwidth=1,
                        relief='solid',
                        bordercolor=self.colors['border'],
-                       rowheight=60)
+                       rowheight=65,
+                       font=('Segoe UI', 10))
         
         style.configure('Dark.Treeview.Heading',
                        background=self.colors['bg_tertiary'],
-                       foreground=self.colors['text_primary'],
+                       foreground=self.colors['text_accent'],
                        borderwidth=1,
-                       relief='solid',
-                       bordercolor=self.colors['border'])
+                       relief='flat',
+                       bordercolor=self.colors['border'],
+                       font=('Segoe UI', 11, 'bold'))
         
         style.map('Dark.Treeview',
-                 background=[('selected', self.colors['accent_blue'])],
+                 background=[('selected', self.colors['bg_hover'])],
                  foreground=[('selected', self.colors['text_primary'])])
         
         style.configure('Dark.TFrame',
@@ -307,135 +732,175 @@ class YouTube4KCheckerGUI:
         
         style.configure('Dark.TLabel',
                        background=self.colors['bg_primary'],
-                       foreground=self.colors['text_primary'])
+                       foreground=self.colors['text_primary'],
+                       font=('Segoe UI', 10))
         
         style.configure('Dark.TEntry',
                        fieldbackground=self.colors['bg_secondary'],
                        foreground=self.colors['text_primary'],
                        bordercolor=self.colors['border'],
-                       insertcolor=self.colors['text_primary'])
+                       borderwidth=1,
+                       insertcolor=self.colors['accent_cyan'],
+                       relief='solid',
+                       font=('Segoe UI', 11))
         
         style.configure('Dark.TButton',
-                       background=self.colors['accent_blue'],
+                       background=self.colors['bg_tertiary'],
                        foreground=self.colors['text_primary'],
-                       borderwidth=0,
-                       focuscolor='none')
+                       borderwidth=1,
+                       relief='solid',
+                       focuscolor='none',
+                       font=('Segoe UI', 10, 'bold'))
         
         style.map('Dark.TButton',
-                 background=[('active', self.colors['accent_purple']),
-                           ('pressed', self.colors['bg_tertiary'])])
+                 background=[('active', self.colors['bg_hover']),
+                           ('pressed', self.colors['bg_hover'])])
         
         style.configure('Success.TButton',
                        background=self.colors['accent_green'],
-                       foreground=self.colors['text_primary'],
-                       borderwidth=0,
-                       focuscolor='none')
+                       foreground=self.colors['bg_primary'],
+                       borderwidth=1,
+                       relief='solid',
+                       focuscolor='none',
+                       font=('Segoe UI', 10, 'bold'))
         
         style.map('Success.TButton',
-                 background=[('active', '#0e6e0e'),
-                           ('pressed', self.colors['bg_tertiary'])])
+                 background=[('active', '#00e67a'),
+                           ('pressed', '#00cc6a')])
         
         style.configure('Warning.TButton',
                        background=self.colors['accent_orange'],
                        foreground=self.colors['text_primary'],
-                       borderwidth=0,
-                       focuscolor='none')
+                       borderwidth=1,
+                       relief='solid',
+                       focuscolor='none',
+                       font=('Segoe UI', 10, 'bold'))
         
         style.map('Warning.TButton',
-                 background=[('active', '#e07600'),
-                           ('pressed', self.colors['bg_tertiary'])])
+                 background=[('active', '#ff9500'),
+                           ('pressed', '#e67e00')])
         
         style.configure('Danger.TButton',
                        background=self.colors['accent_red'],
                        foreground=self.colors['text_primary'],
-                       borderwidth=0,
-                       focuscolor='none')
+                       borderwidth=1,
+                       relief='solid',
+                       focuscolor='none',
+                       font=('Segoe UI', 10, 'bold'))
         
         style.map('Danger.TButton',
-                 background=[('active', '#b42b2f'),
-                           ('pressed', self.colors['bg_tertiary'])])
+                 background=[('active', '#ff6b7d'),
+                           ('pressed', '#ff2d55')])
+        
+        # Modern button styles with ultra-dark theme
+        style.configure('Gradient.TButton',
+                       background=self.colors['accent_purple'],
+                       foreground=self.colors['text_primary'],
+                       borderwidth=1,
+                       relief='solid',
+                       focuscolor='none',
+                       font=('Segoe UI', 10, 'bold'))
+        
+        style.map('Gradient.TButton',
+                 background=[('active', '#b19aff'),
+                           ('pressed', '#8b76ff')])
+        
+        style.configure('Neon.TButton',
+                       background=self.colors['accent_cyan'],
+                       foreground=self.colors['bg_primary'],
+                       borderwidth=1,
+                       relief='solid',
+                       focuscolor='none',
+                       font=('Segoe UI', 10, 'bold'))
+        
+        style.map('Neon.TButton',
+                 background=[('active', '#33ffff'),
+                           ('pressed', '#00e6e6')])
         
         style.configure('Dark.Horizontal.TProgressbar',
-                       background=self.colors['accent_blue'],
-                       troughcolor=self.colors['bg_tertiary'],
-                       borderwidth=0,
-                       lightcolor=self.colors['accent_blue'],
-                       darkcolor=self.colors['accent_blue'])
+                       background=self.colors['accent_green'],
+                       troughcolor=self.colors['bg_secondary'],
+                       borderwidth=1,
+                       relief='solid',
+                       bordercolor=self.colors['border'],
+                       lightcolor=self.colors['accent_green'],
+                       darkcolor=self.colors['accent_green'])
     
     def create_widgets(self):
         # Ana frame container
         main_container = ttk.Frame(self.root, style='Dark.TFrame')
         main_container.pack(fill='both', expand=True, padx=20, pady=20)
         
-        # Ana başlık
-        title_label = tk.Label(main_container, text="🎬 YouTube 4K Video Checker", 
-                              font=('Segoe UI', 18, 'bold'), 
+        # Ana başlık - modern gradient text effect
+        title_label = tk.Label(main_container, text="🎬✨ YouTube 4K Video Checker ✨🎬", 
+                              font=('Segoe UI', 20, 'bold'), 
                               bg=self.colors['bg_primary'], 
-                              fg=self.colors['text_primary'])
-        title_label.pack(pady=(0, 10))
+                              fg=self.colors['accent_cyan'])
+        title_label.pack(pady=(0, 15))
         
-        # Authentication status
-        auth_frame = ttk.Frame(main_container, style='Dark.TFrame')
-        auth_frame.pack(pady=(0, 20), fill='x')
+        # Main layout container - split into left and right
+        layout_container = ttk.Frame(main_container, style='Dark.TFrame')
+        layout_container.pack(fill='both', expand=True)
         
-        auth_left_frame = ttk.Frame(auth_frame, style='Dark.TFrame')
-        auth_left_frame.pack(side='left')
+        # ========== LEFT PANEL (Controls) ==========
+        left_panel = tk.Frame(
+            layout_container,
+            bg=self.colors['bg_secondary'],
+            bd=1,
+            relief='solid',
+            highlightbackground=self.colors['border'],
+            highlightthickness=1,
+            width=450  # Fixed width for left panel
+        )
+        left_panel.pack(side='left', fill='y', padx=(0, 8))
+        left_panel.pack_propagate(False)  # Maintain fixed width
         
-        self.auth_status_label = tk.Label(auth_left_frame, text="⚠️ Not Authenticated", 
-                                         font=('Segoe UI', 12, 'bold'),
-                                         bg=self.colors['bg_primary'], 
-                                         fg=self.colors['accent_orange'])
-        self.auth_status_label.pack(side='left')
+        # Left panel content with padding
+        left_content = ttk.Frame(left_panel, style='Dark.TFrame')
+        left_content.pack(fill='both', expand=True, padx=12, pady=12)
         
-        auth_right_frame = ttk.Frame(auth_frame, style='Dark.TFrame')
-        auth_right_frame.pack(side='right')
+        # Authentication Widget (Modern Widget Approach)
+        auth_section = tk.Label(
+            left_content,
+            text="🔐 Authentication",
+            font=('Segoe UI', 14, 'bold'),
+            bg=self.colors['bg_secondary'],
+            fg=self.colors['accent_green']
+        )
+        auth_section.pack(anchor='w', pady=(0, 8))
         
-        self.auth_btn = ttk.Button(auth_right_frame, text="🔐 Login", 
-                                  command=self.start_oauth_flow, style='Success.TButton')
-        self.auth_btn.pack(side='right')
+        self.auth_widget = self.create_auth_widget(left_content)
+        self.auth_widget.pack(pady=(0, 20), fill='x')
         
-        # Authentication status'unu güncelle
-        self.update_auth_status()
+        # Playlist Input Widget (Modern Widget Approach)
+        playlist_section = tk.Label(
+            left_content,
+            text="🎵 Playlist Settings",
+            font=('Segoe UI', 14, 'bold'),
+            bg=self.colors['bg_secondary'],
+            fg=self.colors['accent_cyan']
+        )
+        playlist_section.pack(anchor='w', pady=(0, 8))
         
-        # Playlist URL girişi
-        url_frame = ttk.Frame(main_container, style='Dark.TFrame')
-        url_frame.pack(pady=(0, 15), fill='x')
+        self.playlist_widget = self.create_playlist_input_widget(left_content)
+        self.playlist_widget.pack(pady=(0, 20), fill='x')
         
-        ttk.Label(url_frame, text="Playlist URL:", font=('Segoe UI', 12, 'bold'), 
-                 style='Dark.TLabel').pack(anchor='w', pady=(0, 5))
-        
-        url_input_frame = ttk.Frame(url_frame, style='Dark.TFrame')
-        url_input_frame.pack(fill='x', pady=(0, 10))
-        
-        self.url_entry = ttk.Entry(url_input_frame, font=('Segoe UI', 11), 
-                                  style='Dark.TEntry', width=60)
-        self.url_entry.pack(side='left', fill='x', expand=True)
-        
-        paste_btn = ttk.Button(url_input_frame, text="📋 Paste", 
-                              command=self.paste_url, style='Success.TButton')
-        paste_btn.pack(side='right', padx=(10, 0))
-        
-        # Playlist bilgileri
-        self.playlist_info_frame = ttk.Frame(url_frame, style='Dark.TFrame')
-        self.playlist_info_frame.pack(fill='x', pady=(0, 10))
-        
-        self.playlist_info_label = tk.Label(self.playlist_info_frame, text="", 
-                                          font=('Segoe UI', 10), 
-                                          bg=self.colors['bg_primary'], 
-                                          fg=self.colors['text_secondary'],
-                                          wraplength=800, justify='left')
-        self.playlist_info_label.pack(anchor='w')
-        
-        # URL değişikliklerini dinle
-        self.url_entry.bind('<KeyRelease>', self.on_url_change)
-        self.url_entry.bind('<FocusOut>', self.on_url_change)
+        # Video Limit Section
+        limit_section = tk.Label(
+            left_content,
+            text="⚙️ Video Limit",
+            font=('Segoe UI', 14, 'bold'),
+            bg=self.colors['bg_secondary'],
+            fg=self.colors['accent_orange']
+        )
+        limit_section.pack(anchor='w', pady=(0, 8))
         
         # Video sayısı sınırı
-        limit_frame = ttk.Frame(main_container, style='Dark.TFrame')
-        limit_frame.pack(pady=(0, 15), fill='x')
+        limit_frame = ttk.Frame(left_content, style='Dark.TFrame')
+        limit_frame.pack(pady=(0, 8), fill='x')
         
         ttk.Label(limit_frame, text="Maximum video count:", 
-                 font=('Segoe UI', 12, 'bold'), style='Dark.TLabel').pack(anchor='w', pady=(0, 5))
+                 font=('Segoe UI', 11, 'bold'), style='Dark.TLabel').pack(anchor='w', pady=(0, 5))
         
         # Slider ve Entry beraber
         slider_frame = ttk.Frame(limit_frame, style='Dark.TFrame')
@@ -467,143 +932,275 @@ class YouTube4KCheckerGUI:
         self.all_videos_check = tk.Checkbutton(entry_frame, text="All", 
                                               variable=self.all_videos_var,
                                               command=self.on_all_videos_toggle,
-                                              bg=self.colors['bg_primary'],
+                                              bg=self.colors['bg_secondary'],
                                               fg=self.colors['text_primary'],
                                               font=('Segoe UI', 10),
-                                              activebackground=self.colors['bg_primary'],
+                                              activebackground=self.colors['bg_secondary'],
                                               activeforeground=self.colors['text_primary'],
-                                              selectcolor=self.colors['bg_secondary'])
+                                              selectcolor=self.colors['bg_tertiary'])
         self.all_videos_check.pack(side='right', padx=(10, 0))
         
-        # Butonlar
-        button_frame = ttk.Frame(main_container, style='Dark.TFrame')
-        button_frame.pack(pady=(0, 15))
+        # Show only 4K filter - Modern switch design
+        filter_frame = ttk.Frame(limit_frame, style='Dark.TFrame')
+        filter_frame.pack(fill='x', pady=(10, 0))
         
-        self.get_videos_btn = ttk.Button(button_frame, text="📥 Get Videos", 
-                                        command=self.get_videos, style='Dark.TButton')
-        self.get_videos_btn.pack(side='left', padx=(0, 10))
+        # Filter container with modern styling
+        filter_container = tk.Frame(
+            filter_frame,
+            bg=self.colors['bg_tertiary'],
+            bd=2,
+            relief='solid'
+        )
+        filter_container.pack(fill='x', pady=(0, 5))
         
-        self.check_4k_btn = ttk.Button(button_frame, text="🔍 Check 4K", 
-                                      command=self.check_4k_videos, style='Warning.TButton',
-                                      state='disabled')
-        self.check_4k_btn.pack(side='left', padx=(0, 10))
+        # Filter inner frame
+        filter_inner = ttk.Frame(filter_container, style='Dark.TFrame')
+        filter_inner.pack(fill='x', padx=10, pady=8)
         
-        self.stop_btn = ttk.Button(button_frame, text="⏹️ Stop", 
-                                  command=self.stop_processing, style='Danger.TButton',
-                                  state='disabled')
-        self.stop_btn.pack(side='left', padx=(0, 10))
+        # 4K filter switch with enhanced styling
+        self.show_4k_only_var = tk.BooleanVar(value=True)  # Automatically active
         
-        # Copy and Clear buttons
-        self.copy_btn = ttk.Button(button_frame, text="📋 Copy Checked", 
-                                  command=self.copy_checked_urls, style='Success.TButton',
-                                  state='disabled')
-        self.copy_btn.pack(side='left', padx=(0, 10))
+        # Left side - icon and label
+        filter_left = ttk.Frame(filter_inner, style='Dark.TFrame')
+        filter_left.pack(side='left')
         
-        # Check management buttons
-        self.check_all_btn = ttk.Button(button_frame, text="☑️ Check All", 
-                                       command=self.check_all_videos, style='Dark.TButton',
-                                       state='disabled')
-        self.check_all_btn.pack(side='left', padx=(0, 10))
+        filter_icon = tk.Label(
+            filter_left,
+            text="✨ 4K Filter:",
+            font=('Segoe UI', 11, 'bold'),
+            bg=self.colors['bg_tertiary'],
+            fg=self.colors['accent_cyan']
+        )
+        filter_icon.pack(side='left')
         
-        self.uncheck_all_btn = ttk.Button(button_frame, text="☐ Uncheck All", 
-                                         command=self.uncheck_all_videos, style='Dark.TButton',
-                                         state='disabled')
-        self.uncheck_all_btn.pack(side='left', padx=(0, 10))
+        # Right side - switch
+        filter_right = ttk.Frame(filter_inner, style='Dark.TFrame')
+        filter_right.pack(side='right')
         
-        self.check_4k_only_btn = ttk.Button(button_frame, text="✅ Check 4K Only", 
-                                           command=self.check_4k_only, style='Success.TButton',
-                                           state='disabled')
-        self.check_4k_only_btn.pack(side='left', padx=(0, 10))
+        # Modern switch-style checkbox
+        self.show_4k_only_check = tk.Checkbutton(
+            filter_right, 
+            text="Show Only 4K Videos",
+            variable=self.show_4k_only_var,
+            command=self.on_4k_filter_toggle,
+            bg=self.colors['bg_tertiary'],
+            fg=self.colors['text_primary'],
+            font=('Segoe UI', 10, 'bold'),
+            activebackground=self.colors['bg_tertiary'],
+            activeforeground=self.colors['accent_green'],
+            selectcolor=self.colors['accent_green'],
+            relief='flat',
+            bd=0
+        )
+        self.show_4k_only_check.pack(side='right')
         
-        # YouTube removal button (only visible when authenticated)
-        self.remove_from_youtube_btn = ttk.Button(button_frame, text="❌ Remove from YouTube", 
-                                                 command=self.remove_checked_from_youtube, 
-                                                 style='Danger.TButton',
-                                                 state='disabled')
-        self.remove_from_youtube_btn.pack(side='left', padx=(0, 10))
+        # Status indicator
+        self.filter_status_label = tk.Label(
+            filter_right,
+            text="🟢 Active",
+            font=('Segoe UI', 9, 'bold'),
+            bg=self.colors['bg_tertiary'],
+            fg=self.colors['accent_green']
+        )
+        self.filter_status_label.pack(side='right', padx=(0, 10))
         
-        self.clear_btn = ttk.Button(button_frame, text="🗑️ Clear", 
-                                   command=self.clear_all, style='Dark.TButton')
-        self.clear_btn.pack(side='left')
+        # Actions Section
+        actions_section = tk.Label(
+            left_content,
+            text="🎮 Actions",
+            font=('Segoe UI', 14, 'bold'),
+            bg=self.colors['bg_secondary'],
+            fg=self.colors['accent_yellow']
+        )
+        actions_section.pack(anchor='w', pady=(20, 8))
         
-        # Progress bar and status
-        progress_frame = ttk.Frame(main_container, style='Dark.TFrame')
-        progress_frame.pack(fill='x', pady=(0, 15))
+        # Modern Button Groups (Widget Approach)
+        self.main_buttons = self.create_main_button_group(left_content)
+        self.main_buttons.pack(pady=(0, 8), fill='x')
         
-        self.progress = ttk.Progressbar(progress_frame, mode='indeterminate', 
-                                       style='Dark.Horizontal.TProgressbar')
-        self.progress.pack(fill='x', pady=(0, 5))
+        self.action_buttons = self.create_action_button_group(left_content)
+        self.action_buttons.pack(pady=(0, 15), fill='x')
         
-        # Durum etiketi
-        self.status_label = tk.Label(progress_frame, text="Enter playlist URL and click 'Get Videos'", 
-                                    font=('Segoe UI', 10), 
-                                    bg=self.colors['bg_primary'], 
-                                    fg=self.colors['text_secondary'])
-        self.status_label.pack()
+        # Modern Status Bar Widget
+        status_section = tk.Label(
+            left_content,
+            text="📊 Status",
+            font=('Segoe UI', 14, 'bold'),
+            bg=self.colors['bg_secondary'],
+            fg=self.colors['accent_purple']
+        )
+        status_section.pack(anchor='w', pady=(0, 8))
         
-        # Video listesi
-        list_frame = ttk.Frame(main_container, style='Dark.TFrame')
-        list_frame.pack(fill='both', expand=True)
+        self.status_widget = self.create_status_widget(left_content)
+        self.status_widget.pack(fill='x', pady=(0, 0))
         
-        ttk.Label(list_frame, text="📹 Videos Found:", font=('Segoe UI', 12, 'bold'), 
-                 style='Dark.TLabel').pack(anchor='w', pady=(0, 10))
+        # ========== RIGHT PANEL (Video List) ==========
+        right_panel = tk.Frame(
+            layout_container,
+            bg=self.colors['bg_secondary'],
+            bd=1,
+            relief='solid',
+            highlightbackground=self.colors['border'],
+            highlightthickness=1
+        )
+        right_panel.pack(side='right', fill='both', expand=True)
         
-        # Treeview ile video listesi
-        tree_frame = ttk.Frame(list_frame, style='Dark.TFrame')
-        tree_frame.pack(fill='both', expand=True)
+        # Right panel header
+        right_header = tk.Frame(
+            right_panel,
+            bg=self.colors['bg_tertiary'],
+            height=50
+        )
+        right_header.pack(fill='x', padx=2, pady=(2, 0))
+        right_header.pack_propagate(False)
         
+        list_title = tk.Label(
+            right_header,
+            text="📺 Video List",
+            font=('Segoe UI', 16, 'bold'),
+            bg=self.colors['bg_tertiary'],
+            fg=self.colors['text_accent']
+        )
+        list_title.pack(side='left', padx=15, pady=15)
+        
+        # Video count in header
+        self.video_count_label = tk.Label(
+            right_header,
+            text="🎬✨ Videos Found: 0 ✨🎬",
+            font=('Segoe UI', 12, 'bold'),
+            bg=self.colors['bg_tertiary'],
+            fg=self.colors['accent_green']
+        )
+        self.video_count_label.pack(side='right', padx=15, pady=15)
+        
+        # Modern Video List Widget (without header since we have it above)
+        self.video_list_widget = self.create_video_list_widget_no_header(right_panel)
+        self.video_list_widget.pack(fill='both', expand=True, padx=2, pady=(0, 2))
+    
+    def create_video_list_widget_no_header(self, parent):
+        """Create Modern Video List Widget without header (for right panel) - Ultra Dark"""
+        # Tree container with ultra-dark styling
+        tree_container = tk.Frame(
+            parent,
+            bg=self.colors['bg_primary'],
+            bd=1,
+            relief='solid',
+            highlightbackground=self.colors['border'],
+            highlightthickness=1
+        )
+        
+        # Treeview frame
+        tree_frame = ttk.Frame(tree_container, style='Dark.TFrame')
+        tree_frame.pack(fill='both', expand=True, padx=1, pady=1)
+        
+        # Enhanced TreeView
         columns = ('Check', 'No', 'Thumbnail', 'Title', 'Quality', 'Status')
-        self.video_tree = ttk.Treeview(tree_frame, columns=columns, show='headings', 
-                                      height=15, style='Dark.Treeview')
+        self.video_tree = ttk.Treeview(
+            tree_frame, 
+            columns=columns, 
+            show='headings',
+            height=20,  # Taller since we have more space
+            style='Dark.Treeview'
+        )
         
-        # Sütun başlıkları
-        self.video_tree.heading('Check', text='☑️')
-        self.video_tree.heading('No', text='#')
-        self.video_tree.heading('Thumbnail', text='🖼️')
-        self.video_tree.heading('Title', text='Video Title')
-        self.video_tree.heading('Quality', text='Quality')
-        self.video_tree.heading('Status', text='4K Status')
+        # Modern column headers with enhanced styling
+        headers = {
+            'Check': '☑️ Select',
+            'No': '#️⃣ No',
+            'Thumbnail': '🖼️ Preview',
+            'Title': '🎬 Video Title',
+            'Quality': '📺 Quality',
+            'Status': '✨ 4K Status'
+        }
         
-        # Sütun genişlikleri
-        self.video_tree.column('Check', width=40, minwidth=40)
-        self.video_tree.column('No', width=50, minwidth=50)
-        self.video_tree.column('Thumbnail', width=80, minwidth=80)
-        self.video_tree.column('Title', width=400, minwidth=200)
-        self.video_tree.column('Quality', width=100, minwidth=100)
-        self.video_tree.column('Status', width=120, minwidth=120)
+        for col, header_text in headers.items():
+            self.video_tree.heading(col, text=header_text)
         
-        # Scrollbar
-        scrollbar = ttk.Scrollbar(tree_frame, orient='vertical', command=self.video_tree.yview)
+        # Enhanced column widths - adjusted for right panel
+        widths = {
+            'Check': (60, 60),
+            'No': (50, 50),
+            'Thumbnail': (90, 90),
+            'Title': (450, 200),  # Wider title for more space
+            'Quality': (100, 100),
+            'Status': (140, 140)
+        }
+        
+        for col, (width, minwidth) in widths.items():
+            self.video_tree.column(col, width=width, minwidth=minwidth)
+        
+        # Modern scrollbar
+        scrollbar = ttk.Scrollbar(
+            tree_frame,
+            orient='vertical',
+            command=self.video_tree.yview
+        )
         self.video_tree.configure(yscrollcommand=scrollbar.set)
         
-        # Pack treeview and scrollbar
+        # Pack with enhanced layout
         self.video_tree.pack(side='left', fill='both', expand=True)
         scrollbar.pack(side='right', fill='y')
         
-        # Right-click context menu
-        self.create_context_menu()
-        self.video_tree.bind('<Button-3>', self.show_context_menu)  # Right-click
-        self.video_tree.bind('<Button-1>', self.on_tree_click)  # Left-click for checkbox toggle
-        
         # Bind events
+        self.video_tree.bind('<Button-3>', self.show_context_menu)  # Right-click
+        self.video_tree.bind('<Button-1>', self.on_tree_click)  # Left-click
+        
+        # Create context menu
+        self.create_context_menu()
+        
+        # Bind limit entry event
         self.limit_entry.bind('<KeyRelease>', self.on_entry_change)
+        
+        return tree_container
 
     def create_context_menu(self):
-        """Create right-click context menu for video list"""
+        """Create ultra-dark right-click context menu for video list"""
         self.context_menu = tk.Menu(self.root, tearoff=0,
-                                   bg=self.colors['bg_secondary'],
+                                   bg=self.colors['bg_primary'],
                                    fg=self.colors['text_primary'],
-                                   activebackground=self.colors['accent_blue'],
-                                   activeforeground=self.colors['text_primary'],
-                                   borderwidth=0)
+                                   activebackground=self.colors['accent_cyan'],
+                                   activeforeground=self.colors['bg_primary'],
+                                   borderwidth=1,
+                                   relief='solid',
+                                   bd=1,
+                                   font=('Segoe UI', 10))
         
-        self.context_menu.add_command(label="📋 Copy Video URL", command=self.copy_selected_url)
-        self.context_menu.add_separator()
-        self.context_menu.add_command(label="🗑️ Remove from Local List", command=self.remove_selected_video)
+        # Ultra-dark menu items with colorful icons and better spacing
+        self.context_menu.add_command(
+            label="  📋  Copy Video URL", 
+            command=self.copy_selected_url,
+            background=self.colors['bg_primary'],
+            activebackground=self.colors['accent_green'],
+            foreground=self.colors['text_primary'],
+            activeforeground=self.colors['bg_primary'],
+            font=('Segoe UI', 10, 'normal')
+        )
+        
+        # Styled separator
+        self.context_menu.add_separator(background=self.colors['bg_hover'])
+        
+        self.context_menu.add_command(
+            label="  🗑️  Remove from Local List", 
+            command=self.remove_selected_video,
+            background=self.colors['bg_primary'],
+            activebackground=self.colors['accent_orange'],
+            foreground=self.colors['text_primary'],
+            activeforeground=self.colors['bg_primary'],
+            font=('Segoe UI', 10, 'normal')
+        )
         
         # Add YouTube playlist removal if authenticated
         if self.is_authenticated:
-            self.context_menu.add_command(label="❌ Remove from YouTube Playlist", command=self.remove_selected_from_youtube)
+            self.context_menu.add_separator(background=self.colors['bg_hover'])
+            self.context_menu.add_command(
+                label="  ❌  Remove from YouTube Playlist", 
+                command=self.remove_selected_from_youtube,
+                background=self.colors['bg_primary'],
+                activebackground=self.colors['accent_red'],
+                foreground=self.colors['text_primary'],
+                activeforeground=self.colors['text_primary'],
+                font=('Segoe UI', 10, 'bold')
+            )
         
     def show_context_menu(self, event):
         """Show context menu on right-click"""
@@ -1055,13 +1652,132 @@ class YouTube4KCheckerGUI:
             self.limit_slider.config(state='normal')
             self.limit_entry.config(state='normal')
     
+    def on_4k_filter_toggle(self):
+        """4K filter toggle değiştiğinde"""
+        if self.show_4k_only_var.get():
+            # 4K filter aktif
+            self.filter_status_label.config(text="🟢 Active", fg=self.colors['accent_green'])
+            self.show_4k_only_check.config(fg=self.colors['accent_green'])
+        else:
+            # 4K filter pasif
+            self.filter_status_label.config(text="🔴 Inactive", fg=self.colors['accent_red'])
+            self.show_4k_only_check.config(fg=self.colors['text_secondary'])
+        
+        # Video listesini filtrele
+        self.apply_4k_filter()
+    
+    def apply_4k_filter(self):
+        """4K filtresini video listesine uygula - Waiting videoları da göster"""
+        if not hasattr(self, 'video_tree'):
+            return
+        
+        # Initialize detached items storage if not exists
+        if not hasattr(self, 'detached_items'):
+            self.detached_items = []
+            
+        if self.show_4k_only_var.get():
+            # Clear any previously detached items
+            self.detached_items = []
+            
+            # Get all items (including detached ones)
+            all_items = list(self.video_tree.get_children())
+            
+            # Also get any items that might be detached
+            for item in getattr(self, '_all_tree_items', []):
+                if item not in all_items and self.video_tree.exists(item):
+                    all_items.append(item)
+            
+            visible_count = 0
+            for item in all_items:
+                if not self.video_tree.exists(item):
+                    continue
+                    
+                values = self.video_tree.item(item, 'values')
+                if len(values) > 5:  # Status column exists
+                    status = values[5]  # Status column
+                    # 4K video veya henüz kontrol edilmemiş (Waiting) ise göster
+                    if '✅ 4K Available!' in status or 'Waiting...' in status:
+                        # 4K video veya waiting - görünür yap (eğer gizliyse)
+                        try:
+                            # Check if item is already visible
+                            parent = self.video_tree.parent(item)
+                            if parent == '':  # Already attached to root
+                                visible_count += 1
+                            else:  # Need to reattach
+                                self.video_tree.reattach(item, '', 'end')
+                                visible_count += 1
+                        except:
+                            # Item might be detached, try to reattach
+                            try:
+                                self.video_tree.reattach(item, '', 'end')
+                                visible_count += 1
+                            except:
+                                pass
+                    else:
+                        # 4K değil ve waiting de değil - gizle
+                        try:
+                            # Only detach if currently visible
+                            parent = self.video_tree.parent(item)
+                            if parent == '':  # Currently attached to root
+                                self.video_tree.detach(item)
+                                self.detached_items.append(item)
+                        except:
+                            pass
+            
+            # Video sayısını güncelle
+            if hasattr(self, 'video_count_label'):
+                total_count = len(getattr(self, '_all_tree_items', all_items))
+                # Kaç tane 4K ve kaç tane waiting olduğunu say
+                k4_count = 0
+                waiting_count = 0
+                for item in self.video_tree.get_children():
+                    try:
+                        values = self.video_tree.item(item, 'values')
+                        if len(values) > 5:
+                            status = values[5]
+                            if '✅ 4K Available!' in status:
+                                k4_count += 1
+                            elif 'Waiting...' in status:
+                                waiting_count += 1
+                    except:
+                        pass
+                
+                self.video_count_label.config(
+                    text=f"🎬✨ Showing 4K + Pending: {visible_count}/{total_count} (4K: {k4_count}, Pending: {waiting_count}) ✨🎬"
+                )
+        else:
+            # Tüm videoları göster - including detached ones
+            # First reattach any detached items
+            for item in self.detached_items:
+                try:
+                    if self.video_tree.exists(item):
+                        self.video_tree.reattach(item, '', 'end')
+                except:
+                    pass
+            
+            # Clear detached items list
+            self.detached_items = []
+            
+            # Ensure all items are visible
+            if hasattr(self, '_all_tree_items'):
+                for item in self._all_tree_items:
+                    try:
+                        if self.video_tree.exists(item):
+                            parent = self.video_tree.parent(item)
+                            if parent != '':  # Not attached to root
+                                self.video_tree.reattach(item, '', 'end')
+                    except:
+                        pass
+            
+            # Video sayısını güncelle
+            if hasattr(self, 'video_count_label'):
+                total_count = len(self.video_tree.get_children())
+                self.video_count_label.config(text=f"🎬✨ Videos Found: {total_count} ✨🎬")
+    
     def stop_processing(self):
         """İşlemi durdurmak için flag'i ayarla"""
         self.stop_requested = True
         self.status_label.config(text="⏹️ Process stopping...")
-        # Check 4K Only butonunu aktif et (eğer 4K video bulunduysa)
-        if self.found_4k_videos:
-            self.check_4k_only_btn.config(state='normal')
     
     def get_playlist_info(self, playlist_id):
         """Playlist bilgilerini al"""
@@ -1186,14 +1902,13 @@ class YouTube4KCheckerGUI:
         thread.start()
     
     def _get_videos_thread(self, url, max_videos):
-        """Video getirme işlemini thread'de yap"""
+        """Video getirme işlemini thread'de yap ve otomatik 4K kontrolü başlat"""
         self.is_processing = True
         self.progress.start()
         self.get_videos_btn.config(state='disabled')
-        self.check_4k_btn.config(state='disabled')
         
         try:
-            self.status_label.config(text="Analyzing playlist...")
+            self.root.after(0, lambda: self.status_label.config(text="🔍 Analyzing playlist..."))
             
             # Playlist ID'yi çıkar
             playlist_id = self.extract_playlist_id(url)
@@ -1201,7 +1916,7 @@ class YouTube4KCheckerGUI:
             # Video ID'lerini al
             video_ids = self.get_video_ids_from_playlist(playlist_id, max_videos)
             
-            self.status_label.config(text=f"{len(video_ids)} videos found, getting details...")
+            self.root.after(0, lambda: self.status_label.config(text=f"📥 {len(video_ids)} videos found, getting details..."))
             
             # Video detaylarını al
             self.video_details = self.get_video_details(video_ids)
@@ -1209,20 +1924,34 @@ class YouTube4KCheckerGUI:
             # GUI'yi güncelle
             self.root.after(0, self._update_video_list)
             
+            # Videos successfully loaded, now automatically start 4K checking
+            if hasattr(self, 'video_details') and self.video_details:
+                self.root.after(0, lambda: self.status_label.config(text="✨ Videos loaded successfully! Starting 4K check..."))
+                # Start 4K checking automatically
+                self.root.after(1000, self._start_4k_check_automatically)  # Small delay for UI update
+            
         except Exception as e:
             self.root.after(0, lambda: messagebox.showerror("Error", f"Error getting videos: {str(e)}"))
-        finally:
             self.is_processing = False
             self.progress.stop()
             self.get_videos_btn.config(state='normal')
-            if hasattr(self, 'video_details') and self.video_details:
-                self.check_4k_btn.config(state='normal')
+    
+    def _start_4k_check_automatically(self):
+        """Otomatik olarak 4K kontrolünü başlat"""
+        if not self.is_processing and hasattr(self, 'video_details') and self.video_details:
+            # Start 4K checking thread
+            thread = threading.Thread(target=self._check_4k_thread)
+            thread.daemon = True
+            thread.start()
     
     def _update_video_list(self):
         """Video listesini güncelle"""
         # Listeyi temizle
         for item in self.video_tree.get_children():
             self.video_tree.delete(item)
+        
+        # Store all tree items for filter management
+        self._all_tree_items = []
         
         # Videoları ekle
         for i, video in enumerate(self.video_details, 1):
@@ -1238,16 +1967,29 @@ class YouTube4KCheckerGUI:
                 "Waiting..."
             ), tags=(video['id'],))
             
+            # Store item ID for filter management
+            self._all_tree_items.append(item_id)
+            
             # Thumbnail'i thread'de yükle
             thread = threading.Thread(target=self._load_thumbnail_async, args=(item_id, video['id'], video['thumbnail_url']))
             thread.daemon = True
             thread.start()
         
+        # Initialize detached items list
+        self.detached_items = []
+        
+        # Apply current filter if active
+        if hasattr(self, 'show_4k_only_var') and self.show_4k_only_var.get():
+            self.apply_4k_filter()
+        
         # Check management buttons'ı aktif et
         self.check_all_btn.config(state='normal')
         self.uncheck_all_btn.config(state='normal')
         
-        self.status_label.config(text=f"{len(self.video_details)} videos listed. Press button to check 4K.")
+        # Update video count
+        self.update_video_count(len(self.video_details))
+        
+        self.status_label.config(text=f"📺 {len(self.video_details)} videos listed. 4K check will start automatically...")
     
     def _load_thumbnail_async(self, item_id, video_id, thumbnail_url):
         """Thumbnail'i asenkron olarak yükle"""
@@ -1351,7 +2093,6 @@ class YouTube4KCheckerGUI:
         self.is_processing = True
         self.stop_requested = False
         self.progress.start()
-        self.check_4k_btn.config(state='disabled')
         self.stop_btn.config(state='normal')  # Stop butonunu aktif et
         self.copy_btn.config(state='disabled')  # Copy butonunu deaktif et
         self.found_4k_videos = []
@@ -1403,23 +2144,107 @@ class YouTube4KCheckerGUI:
             self.is_processing = False
             self.stop_requested = False
             self.progress.stop()
-            self.check_4k_btn.config(state='normal')
             self.stop_btn.config(state='disabled')  # Stop butonunu deaktif et
     
     def _update_video_status(self, video, status):
         """Video durumunu güncelle"""
-        for item in self.video_tree.get_children():
+        for item in getattr(self, '_all_tree_items', self.video_tree.get_children()):
+            if not self.video_tree.exists(item):
+                continue
+                
             values = self.video_tree.item(item, 'values')
             if video['title'][:50] in values[3]:  # Title sütunu (index 3 now)
                 new_values = list(values)
                 new_values[5] = status  # Status sütunu (index 5 now)
                 self.video_tree.item(item, values=new_values)
+                
+                # 4K filter aktifse kontrol et
+                if hasattr(self, 'show_4k_only_var') and self.show_4k_only_var.get():
+                    # Sadece 4K olmayan VE waiting olmayan videoları gizle
+                    if '✅ 4K Available!' not in status and 'Waiting...' not in status:
+                        try:
+                            # Check if currently visible
+                            parent = self.video_tree.parent(item)
+                            if parent == '':  # Currently attached to root
+                                self.video_tree.detach(item)
+                                if not hasattr(self, 'detached_items'):
+                                    self.detached_items = []
+                                if item not in self.detached_items:
+                                    self.detached_items.append(item)
+                        except:
+                            pass
+                    else:
+                        # 4K veya waiting ise görünür yap (eğer gizliyse)
+                        try:
+                            parent = self.video_tree.parent(item)
+                            if parent != '':  # Currently detached
+                                self.video_tree.reattach(item, '', 'end')
+                                if hasattr(self, 'detached_items') and item in self.detached_items:
+                                    self.detached_items.remove(item)
+                        except:
+                            pass
+                
                 break
+        
+        # Video sayısını güncelle
+        if hasattr(self, 'show_4k_only_var') and self.show_4k_only_var.get():
+            # Update filtered count
+            visible_count = len(self.video_tree.get_children())
+            total_count = len(getattr(self, '_all_tree_items', []))
+            
+            k4_count = 0
+            waiting_count = 0
+            for item in self.video_tree.get_children():
+                try:
+                    values = self.video_tree.item(item, 'values')
+                    if len(values) > 5:
+                        item_status = values[5]
+                        if '✅ 4K Available!' in item_status:
+                            k4_count += 1
+                        elif 'Waiting...' in item_status:
+                            waiting_count += 1
+                except:
+                    pass
+            
+            if hasattr(self, 'video_count_label'):
+                self.video_count_label.config(
+                    text=f"🎬✨ Showing 4K + Pending: {visible_count}/{total_count} (4K: {k4_count}, Pending: {waiting_count}) ✨🎬"
+                )
+    
+    def update_filtered_video_count(self):
+        """Filtrelenmiş video sayısını güncelle"""
+        if not hasattr(self, 'video_tree') or not hasattr(self, 'video_count_label'):
+            return
+            
+        all_items = list(self.video_tree.get_children())
+        # Detached items'ı da say
+        detached_items = []
+        
+        # Tüm video sayısını bul (attached + detached)
+        total_count = len(self.video_details) if hasattr(self, 'video_details') else len(all_items)
+        
+        if hasattr(self, 'show_4k_only_var') and self.show_4k_only_var.get():
+            # Sadece görünür 4K videoları say
+            visible_4k_count = 0
+            for item in all_items:
+                values = self.video_tree.item(item, 'values')
+                if len(values) > 5:  # Status column exists
+                    status = values[5]  # Status column
+                    if '✅ 4K Available!' in status:
+                        visible_4k_count += 1
+            
+            self.video_count_label.config(text=f"🎬✨ 4K Videos: {visible_4k_count}/{total_count} ✨🎬")
+        else:
+            self.video_count_label.config(text=f"🎬✨ Videos Found: {total_count} ✨🎬")
     
     def _show_results(self):
         """Sonuçları göster"""
         total_videos = len(self.video_details)
         found_count = len(self.found_4k_videos)
+        
+        # 4K filtresini uygula (eğer aktifse)
+        if hasattr(self, 'show_4k_only_var') and self.show_4k_only_var.get():
+            self.apply_4k_filter()
         
         self.status_label.config(text=f"✅ Scan completed! {total_videos} videos scanned, {found_count} 4K videos found.")
         
@@ -1427,7 +2252,10 @@ class YouTube4KCheckerGUI:
         self.check_4k_only_btn.config(state='normal')
         
         if self.found_4k_videos:
-            messagebox.showinfo("Result", f"🎉 {found_count} 4K videos found!\n\nUse checkboxes to select videos and copy URLs.")
+            if hasattr(self, 'show_4k_only_var') and self.show_4k_only_var.get():
+                messagebox.showinfo("Result", f"🎉 {found_count} 4K videos found!\n\n✨ 4K Filter is active - showing only 4K videos.\nUse checkboxes to select videos and copy URLs.")
+            else:
+                messagebox.showinfo("Result", f"🎉 {found_count} 4K videos found!\n\nUse checkboxes to select videos and copy URLs.")
         else:
             messagebox.showinfo("Result", "😔 No 4K videos found.\n\nThis playlist doesn't have 4K quality videos.")
     
