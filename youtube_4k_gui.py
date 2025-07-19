@@ -1920,18 +1920,69 @@ class YouTube4KCheckerGUI:
             messagebox.showwarning("Warning", "No text found in clipboard!")
     
     def load_thumbnail(self, video_id, thumbnail_url):
-        """Video thumbnail'ini yükle - Basitleştirilmiş ve güvenilir yaklaşım"""
+        """Video thumbnail'ini yükle - Akıllı retry sistemi ile"""
         try:
             if video_id in self.thumbnail_cache:
                 return self.thumbnail_cache[video_id]
             
-            # Basit emoji thumbnail kullan (yükleme sorunları için)
-            # Bu SSL/network sorunlarını önler
-            return None  # Thumbnail yüklemek yerine emoji kullanacağız
+            # Multiple URL endpoints to try
+            thumbnail_urls = [
+                thumbnail_url,  # Original URL
+                f"https://img.youtube.com/vi/{video_id}/default.jpg",  # Alternative 1
+                f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg",  # Alternative 2
+                f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg",  # Alternative 3
+                f"https://i.ytimg.com/vi/{video_id}/default.jpg",  # Alternative 4
+            ]
+            
+            # Try each URL with different configurations
+            for i, url in enumerate(thumbnail_urls):
+                try:
+                    # Different headers for each attempt
+                    headers_options = [
+                        {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'},
+                        {'User-Agent': 'Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1)'},
+                        {'User-Agent': 'curl/7.68.0'},
+                        {}  # No headers
+                    ]
+                    
+                    headers = headers_options[min(i, len(headers_options)-1)]
+                    
+                    # Try with different SSL settings
+                    ssl_configs = [
+                        {'verify': False, 'timeout': 10},
+                        {'verify': False, 'timeout': 5},
+                        {'timeout': 3}  # No SSL verification specified
+                    ]
+                    
+                    config = ssl_configs[min(i, len(ssl_configs)-1)]
+                    
+                    print(f"Trying thumbnail URL {i+1}: {url[:50]}...")
+                    response = requests.get(url, headers=headers, **config)
+                    
+                    if response.status_code == 200 and len(response.content) > 1000:  # Ensure it's a real image
+                        # PIL ile resmi yükle ve yeniden boyutlandır
+                        image = Image.open(io.BytesIO(response.content))
+                        image = image.resize((60, 40), Image.Resampling.LANCZOS)
+                        
+                        # Tkinter uyumlu hale getir
+                        photo = ImageTk.PhotoImage(image)
+                        
+                        # Önbelleğe al - referansı korumak için
+                        self.thumbnail_cache[video_id] = photo
+                        self.thumbnail_refs.append(photo)  # Referansı koru
+                        print(f"✅ Thumbnail loaded successfully for {video_id}")
+                        return photo
+                
+                except Exception as url_error:
+                    print(f"❌ URL {i+1} failed: {str(url_error)[:100]}")
+                    continue
+            
+            print(f"⚠️ All thumbnail URLs failed for {video_id}")
+            return None
+            
         except Exception as e:
-            print(f"Thumbnail could not be loaded ({video_id}): {e}")
-        
-        return None
+            print(f"💥 Thumbnail loading crashed for {video_id}: {e}")
+            return None
     
     def extract_playlist_id(self, playlist_url):
         """Playlist URL'sinden ID'yi çıkar"""
@@ -2101,6 +2152,11 @@ class YouTube4KCheckerGUI:
             
             # Store item ID for filter management
             self._all_tree_items.append(item_id)
+            
+            # Thumbnail'i thread'de yükle - Akıllı retry sistemi ile
+            thread = threading.Thread(target=self._load_thumbnail_async, args=(item_id, video['id'], video['thumbnail_url']))
+            thread.daemon = True
+            thread.start()
         
         # Initialize detached items list
         self.detached_items = []
@@ -2119,16 +2175,17 @@ class YouTube4KCheckerGUI:
         self.status_label.config(text=f"📺 {len(self.video_details)} videos listed. 4K check will start automatically...")
     
     def _load_thumbnail_async(self, item_id, video_id, thumbnail_url):
-        """Thumbnail'i asenkron olarak yükle"""
+        """Thumbnail'i asenkron olarak yükle - Akıllı retry sistemi"""
         try:
             thumbnail = self.load_thumbnail(video_id, thumbnail_url)
             if thumbnail:
                 # Ana thread'de GUI'yi güncelle
                 self.root.after(0, lambda: self._update_thumbnail(item_id, thumbnail))
             else:
-                # Hata durumunda ❌ işareti göster
-                self.root.after(0, lambda: self._update_thumbnail_text(item_id, "❌"))
-        except:
+                # Hata durumunda kaliteye göre emoji göster
+                self.root.after(0, lambda: self._update_thumbnail_text(item_id, "🎬"))
+        except Exception as e:
+            print(f"Async thumbnail loading failed for {video_id}: {e}")
             self.root.after(0, lambda: self._update_thumbnail_text(item_id, "❌"))
     
     def _update_thumbnail(self, item_id, photo):
