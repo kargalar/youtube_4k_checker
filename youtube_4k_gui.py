@@ -14,6 +14,8 @@ from PIL import Image, ImageTk
 import io
 import webbrowser
 import urllib3
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
 
 # SSL uyarılarını devre dışı bırak
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -53,7 +55,8 @@ class YouTube4KCheckerGUI:
         
         # API Key - Buraya kendi API key'inizi yazın
         self.API_KEY = 'AIzaSyA3hWhKJmy2_0A7cfbB46va3XWsq-SeV2E'
-        self.youtube = build('youtube', 'v3', developerKey=self.API_KEY)
+        self.api_key = self.API_KEY  # Eski uyumluluk için
+        self.setup_youtube_api()
         
         # OAuth2 için değişkenler
         self.authenticated_youtube = None
@@ -78,6 +81,17 @@ class YouTube4KCheckerGUI:
         self.thumbnail_refs = []   # Thumbnail referanslarını korumak için
         
         self.create_widgets()
+    
+    def setup_youtube_api(self):
+        """YouTube API'yi başlat"""
+        try:
+            if not hasattr(self, 'youtube') or self.youtube is None:
+                self.youtube = build('youtube', 'v3', developerKey=self.API_KEY)
+                print("YouTube API initialized successfully")
+        except Exception as e:
+            print(f"YouTube API setup error: {e}")
+            # API başarısız olursa None olarak bırak, video getirirken tekrar deneriz
+            self.youtube = None
 
     def check_existing_authentication(self):
         """Mevcut authentication durumunu kontrol et"""
@@ -726,6 +740,15 @@ class YouTube4KCheckerGUI:
                  background=[('selected', self.colors['bg_hover'])],
                  foreground=[('selected', self.colors['text_primary'])])
         
+        # Özel tag stilleri - seçili satırları vurgulamak için
+        style.configure('Dark.Treeview.selected',
+                       background=self.colors['accent_green'],
+                       foreground='#ffffff')
+        
+        style.configure('Dark.Treeview.normal',
+                       background=self.colors['bg_primary'],
+                       foreground=self.colors['text_primary'])
+        
         style.configure('Dark.TFrame',
                        background=self.colors['bg_primary'],
                        borderwidth=0)
@@ -1341,25 +1364,38 @@ class YouTube4KCheckerGUI:
             self.toggle_checkbox(item)
     
     def toggle_checkbox(self, item):
-        """Toggle checkbox state for an item"""
+        """Toggle checkbox state for an item - Geliştirilmiş görsel feedback"""
         if not self.video_tree.exists(item):
             return
             
         values = list(self.video_tree.item(item, 'values'))
         current_check = values[0]
         
-        # Toggle between checked and unchecked
-        if current_check == '☑️':
-            values[0] = '☐'
+        # Toggle between checked and unchecked with better visual indicators
+        if current_check == '✅':
+            values[0] = '⬜'  # Daha belirgin unchecked
+            # Satır rengini normal yap
+            self.video_tree.set(item, 'Check', '⬜')
         else:
-            values[0] = '☑️'
+            values[0] = '✅'  # Daha belirgin checked
+            # Satır rengini vurgulu yap
+            self.video_tree.set(item, 'Check', '✅')
         
         self.video_tree.item(item, values=values)
+        
+        # Satır rengini değiştir (seçili olanları vurgula)
+        if values[0] == '✅':
+            # Seçili satırı yeşil tonuyla vurgula
+            self.video_tree.item(item, tags=('selected',))
+        else:
+            # Seçili değilse normal
+            self.video_tree.item(item, tags=('normal',))
+        
         self.update_copy_button_state()
     
     def update_copy_button_state(self):
-        """Update copy button state based on checked items"""
-        has_checked = any(self.video_tree.item(item, 'values')[0] == '☑️' 
+        """Update copy button state based on checked items - Yeni checkbox formatı"""
+        has_checked = any(self.video_tree.item(item, 'values')[0] == '✅' 
                          for item in self.video_tree.get_children())
         
         if has_checked:
@@ -1374,31 +1410,32 @@ class YouTube4KCheckerGUI:
                 self.remove_from_youtube_btn.config(state='disabled')
     
     def check_all_videos(self):
-        """Check all videos in the list"""
+        """Check all videos in the list - Geliştirilmiş görsel feedback ile"""
         for item in self.video_tree.get_children():
             values = list(self.video_tree.item(item, 'values'))
-            values[0] = '☑️'
-            self.video_tree.item(item, values=values)
+            values[0] = '✅'
+            self.video_tree.item(item, values=values, tags=('selected',))
         self.update_copy_button_state()
     
     def uncheck_all_videos(self):
-        """Uncheck all videos in the list"""
+        """Uncheck all videos in the list - Geliştirilmiş görsel feedback ile"""
         for item in self.video_tree.get_children():
             values = list(self.video_tree.item(item, 'values'))
-            values[0] = '☐'
-            self.video_tree.item(item, values=values)
+            values[0] = '⬜'
+            self.video_tree.item(item, values=values, tags=('normal',))
         self.update_copy_button_state()
     
     def check_4k_only(self):
-        """Check only videos that have 4K available"""
+        """Check only videos that have 4K available - Geliştirilmiş görsel feedback ile"""
         for item in self.video_tree.get_children():
             values = list(self.video_tree.item(item, 'values'))
             status = values[5]  # Status column
             if '✅ 4K Available!' in status:
-                values[0] = '☑️'
+                values[0] = '✅'
+                self.video_tree.item(item, values=values, tags=('selected',))
             else:
-                values[0] = '☐'
-            self.video_tree.item(item, values=values)
+                values[0] = '⬜'
+                self.video_tree.item(item, values=values, tags=('normal',))
         self.update_copy_button_state()
     
     def copy_checked_urls(self):
@@ -1692,33 +1729,59 @@ class YouTube4KCheckerGUI:
                 if len(values) > 5:  # Status column exists
                     status = values[5]  # Status column
                     # 4K video veya henüz kontrol edilmemiş (Waiting) ise göster
-                    if '✅ 4K Available!' in status or 'Waiting...' in status:
-                        # 4K video veya waiting - görünür yap (eğer gizliyse)
-                        try:
-                            # Check if item is already visible
-                            parent = self.video_tree.parent(item)
-                            if parent == '':  # Already attached to root
-                                visible_count += 1
-                            else:  # Need to reattach
-                                self.video_tree.reattach(item, '', 'end')
-                                visible_count += 1
-                        except:
-                            # Item might be detached, try to reattach
+                    # Ancak eğer işlem stop edilmişse, sadece 4K Available olanları göster
+                    if hasattr(self, 'stop_requested') and self.stop_requested:
+                        # Stop edilmişse sadece 4K available olanları göster
+                        if '✅ 4K Available!' in status:
+                            # 4K video - görünür yap (eğer gizliyse)
                             try:
-                                self.video_tree.reattach(item, '', 'end')
-                                visible_count += 1
+                                parent = self.video_tree.parent(item)
+                                if parent == '':  # Already attached to root
+                                    visible_count += 1
+                                else:  # Need to reattach
+                                    self.video_tree.reattach(item, '', 'end')
+                                    visible_count += 1
+                            except:
+                                try:
+                                    self.video_tree.reattach(item, '', 'end')
+                                    visible_count += 1
+                                except:
+                                    pass
+                        else:
+                            # Waiting veya No 4K - gizle
+                            try:
+                                parent = self.video_tree.parent(item)
+                                if parent == '':  # Currently attached to root
+                                    self.video_tree.detach(item)
+                                    self.detached_items.append(item)
                             except:
                                 pass
                     else:
-                        # 4K değil ve waiting de değil - gizle
-                        try:
-                            # Only detach if currently visible
-                            parent = self.video_tree.parent(item)
-                            if parent == '':  # Currently attached to root
-                                self.video_tree.detach(item)
-                                self.detached_items.append(item)
-                        except:
-                            pass
+                        # Normal durum: 4K video veya henüz kontrol edilmemiş (Waiting) ise göster
+                        if '✅ 4K Available!' in status or 'Waiting...' in status:
+                            # 4K video veya waiting - görünür yap (eğer gizliyse)
+                            try:
+                                parent = self.video_tree.parent(item)
+                                if parent == '':  # Already attached to root
+                                    visible_count += 1
+                                else:  # Need to reattach
+                                    self.video_tree.reattach(item, '', 'end')
+                                    visible_count += 1
+                            except:
+                                try:
+                                    self.video_tree.reattach(item, '', 'end')
+                                    visible_count += 1
+                                except:
+                                    pass
+                        else:
+                            # 4K değil ve waiting de değil - gizle
+                            try:
+                                parent = self.video_tree.parent(item)
+                                if parent == '':  # Currently attached to root
+                                    self.video_tree.detach(item)
+                                    self.detached_items.append(item)
+                            except:
+                                pass
             
             # Video sayısını güncelle
             if hasattr(self, 'video_count_label'):
@@ -1738,9 +1801,15 @@ class YouTube4KCheckerGUI:
                     except:
                         pass
                 
-                self.video_count_label.config(
-                    text=f"🎬✨ Showing 4K + Pending: {visible_count}/{total_count} (4K: {k4_count}, Pending: {waiting_count}) ✨🎬"
-                )
+                # Stop edilmişse farklı mesaj göster
+                if hasattr(self, 'stop_requested') and self.stop_requested:
+                    self.video_count_label.config(
+                        text=f"🎬✨ Showing 4K Only: {visible_count}/{total_count} (stopped) ✨🎬"
+                    )
+                else:
+                    self.video_count_label.config(
+                        text=f"🎬✨ Showing 4K + Pending: {visible_count}/{total_count} (4K: {k4_count}, Pending: {waiting_count}) ✨🎬"
+                    )
         else:
             # Tüm videoları göster - including detached ones
             # First reattach any detached items
@@ -1771,9 +1840,14 @@ class YouTube4KCheckerGUI:
                 self.video_count_label.config(text=f"🎬✨ Videos Found: {total_count} ✨🎬")
     
     def stop_processing(self):
-        """İşlemi durdurmak için flag'i ayarla"""
+        """İşlemi durdurmak için flag'i ayarla ve filtreyi güncelle"""
         self.stop_requested = True
         self.status_label.config(text="⏹️ Process stopping...")
+        
+        # Eğer 4K filter aktifse, waiting videoları gizlemek için filtreyi yeniden uygula
+        if hasattr(self, 'show_4k_only_var') and self.show_4k_only_var.get():
+            # Kısa bir delay ile filter'ı güncelle (thread'lerin durması için)
+            self.root.after(1000, self.apply_4k_filter)
     
     def get_playlist_info(self, playlist_id):
         """Playlist bilgilerini al"""
@@ -1846,24 +1920,14 @@ class YouTube4KCheckerGUI:
             messagebox.showwarning("Warning", "No text found in clipboard!")
     
     def load_thumbnail(self, video_id, thumbnail_url):
-        """Video thumbnail'ini yükle ve önbelleğe al"""
+        """Video thumbnail'ini yükle - Basitleştirilmiş ve güvenilir yaklaşım"""
         try:
             if video_id in self.thumbnail_cache:
                 return self.thumbnail_cache[video_id]
             
-            response = requests.get(thumbnail_url, timeout=5)
-            if response.status_code == 200:
-                # PIL ile resmi yükle ve yeniden boyutlandır
-                image = Image.open(io.BytesIO(response.content))
-                image = image.resize((60, 40), Image.Resampling.LANCZOS)
-                
-                # Tkinter uyumlu hale getir
-                photo = ImageTk.PhotoImage(image)
-                
-                # Önbelleğe al - referansı korumak için
-                self.thumbnail_cache[video_id] = photo
-                self.thumbnail_refs.append(photo)  # Referansı koru
-                return photo
+            # Basit emoji thumbnail kullan (yükleme sorunları için)
+            # Bu SSL/network sorunlarını önler
+            return None  # Thumbnail yüklemek yerine emoji kullanacağız
         except Exception as e:
             print(f"Thumbnail could not be loaded ({video_id}): {e}")
         
@@ -1886,6 +1950,9 @@ class YouTube4KCheckerGUI:
             messagebox.showerror("Error", "Please enter playlist URL!")
             return
         
+        # Önceki verileri temizle
+        self.clear_video_data()
+        
         # Video sayısı sınırını al
         if self.all_videos_var.get():
             max_videos = None  # All
@@ -1897,6 +1964,40 @@ class YouTube4KCheckerGUI:
         thread.daemon = True
         thread.start()
     
+    def clear_video_data(self):
+        """Video verilerini temizle (authentication hariç)"""
+        # Video listesini temizle
+        for item in self.video_tree.get_children():
+            self.video_tree.delete(item)
+        
+        # İç verileri temizle
+        self.found_4k_videos = []
+        self.stop_requested = False
+        
+        # Thumbnail önbelleğini temizle
+        self.thumbnail_cache.clear()
+        self.thumbnail_refs.clear()
+        
+        # Detached items'ı temizle
+        if hasattr(self, 'detached_items'):
+            self.detached_items = []
+        
+        if hasattr(self, '_all_tree_items'):
+            self._all_tree_items = []
+        
+        if hasattr(self, 'video_details'):
+            delattr(self, 'video_details')
+        
+        # Button durumlarını resetle
+        self.copy_btn.config(state='disabled')
+        self.check_all_btn.config(state='disabled')
+        self.uncheck_all_btn.config(state='disabled')
+        self.check_4k_only_btn.config(state='disabled')
+        self.remove_from_youtube_btn.config(state='disabled')
+        
+        # Video count'u güncelle
+        self.update_video_count(0)
+    
     def _get_videos_thread(self, url, max_videos):
         """Video getirme işlemini thread'de yap ve otomatik 4K kontrolü başlat"""
         self.is_processing = True
@@ -1906,16 +2007,31 @@ class YouTube4KCheckerGUI:
         try:
             self.root.after(0, lambda: self.status_label.config(text="🔍 Analyzing playlist..."))
             
+            # YouTube API'nin hazır olduğundan emin ol
+            if not hasattr(self, 'youtube') or self.youtube is None:
+                self.root.after(0, lambda: self.status_label.config(text="🔧 Initializing YouTube API..."))
+                self.setup_youtube_api()
+                time.sleep(1)  # API'nin hazır olması için kısa bekleme
+            
             # Playlist ID'yi çıkar
             playlist_id = self.extract_playlist_id(url)
             
             # Video ID'lerini al
+            self.root.after(0, lambda: self.status_label.config(text="📋 Getting video list..."))
             video_ids = self.get_video_ids_from_playlist(playlist_id, max_videos)
+            
+            if not video_ids:
+                self.root.after(0, lambda: messagebox.showerror("Error", "No videos found in playlist or playlist is private!"))
+                return
             
             self.root.after(0, lambda: self.status_label.config(text=f"📥 {len(video_ids)} videos found, getting details..."))
             
             # Video detaylarını al
             self.video_details = self.get_video_details(video_ids)
+            
+            if not self.video_details:
+                self.root.after(0, lambda: messagebox.showerror("Error", "Could not get video details!"))
+                return
             
             # GUI'yi güncelle
             self.root.after(0, self._update_video_list)
@@ -1932,7 +2048,11 @@ class YouTube4KCheckerGUI:
                 self.root.after(1000, self._start_4k_check_automatically)  # Small delay for UI update
             
         except Exception as e:
-            self.root.after(0, lambda: messagebox.showerror("Error", f"Error getting videos: {str(e)}"))
+            error_msg = f"Error getting videos: {str(e)}"
+            print(f"_get_videos_thread error: {error_msg}")
+            self.root.after(0, lambda: messagebox.showerror("Error", error_msg))
+            self.root.after(0, lambda: self.status_label.config(text="❌ Failed to get videos"))
+        finally:
             self.is_processing = False
             self.progress.stop()
             self.get_videos_btn.config(state='normal')
@@ -1963,23 +2083,24 @@ class YouTube4KCheckerGUI:
         for i, video in enumerate(self.video_details, 1):
             quality = "HD" if video['definition'] == 'hd' else "SD"
             
+            # Kaliteye göre emoji seç
+            if video['definition'] == 'hd':
+                thumbnail_emoji = "🎬"  # HD için film emoji
+            else:
+                thumbnail_emoji = "📱"  # SD için mobil emoji
+            
             # Item'ı ekle video_id'yi tag olarak ekle, checkbox unchecked olarak başla
             item_id = self.video_tree.insert('', 'end', values=(
-                '☐',  # Checkbox - unchecked by default
+                '⬜',  # Checkbox - unchecked by default (daha belirgin)
                 i, 
-                "🖼️",  # Placeholder thumbnail için
+                thumbnail_emoji,  # Emoji thumbnail (güvenilir)
                 video['title'][:50] + "..." if len(video['title']) > 50 else video['title'],
                 quality,
                 "Waiting..."
-            ), tags=(video['id'],))
+            ), tags=(video['id'], 'normal'))  # normal tag ekle
             
             # Store item ID for filter management
             self._all_tree_items.append(item_id)
-            
-            # Thumbnail'i thread'de yükle
-            thread = threading.Thread(target=self._load_thumbnail_async, args=(item_id, video['id'], video['thumbnail_url']))
-            thread.daemon = True
-            thread.start()
         
         # Initialize detached items list
         self.detached_items = []
@@ -2095,7 +2216,7 @@ class YouTube4KCheckerGUI:
         thread.start()
     
     def _check_4k_thread(self):
-        """4K kontrol işlemini thread'de yap"""
+        """4K kontrol işlemini thread'de yap - Paralel işleme ile hızlandırılmış"""
         self.is_processing = True
         self.stop_requested = False
         self.progress.start()
@@ -2106,28 +2227,72 @@ class YouTube4KCheckerGUI:
         try:
             hd_videos = [v for v in self.video_details if v['definition'] == 'hd']
             
-            for i, video in enumerate(hd_videos):
-                # Durduruluyor mu kontrol et
-                if self.stop_requested:
-                    self.root.after(0, lambda: self.status_label.config(text="❌ Process stopped by user."))
-                    break
+            if not hd_videos:
+                # SD videoları için durum güncelle
+                sd_videos = [v for v in self.video_details if v['definition'] == 'sd']
+                for video in sd_videos:
+                    self.root.after(0, lambda v=video: self._update_video_status(v, "📱 SD Quality"))
                 
-                # GUI'yi güncelle
-                self.root.after(0, lambda v=video, idx=i: self._update_video_status(v, f"Checking... ({idx+1}/{len(hd_videos)})"))
+                self.root.after(0, self._show_results)
+                return
+            
+            # Paralel işleme için ThreadPoolExecutor kullan - daha az thread, daha güvenilir
+            max_workers = min(6, len(hd_videos))  # Maksimum 6 thread (daha stabil)
+            completed_count = 0
+            failed_count = 0
+            
+            self.root.after(0, lambda: self.status_label.config(text=f"🚀 Smart 4K scanning with {max_workers} threads..."))
+            
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                # Tüm videoları submit et
+                future_to_video = {
+                    executor.submit(self.check_4k_availability, video['url']): video 
+                    for video in hd_videos
+                }
                 
-                # 4K kontrolü yap
-                is_4k = self.check_4k_availability(video['url'])
-                
-                # Tekrar durduruluyor mu kontrol et (HTTP isteği sonrası)
-                if self.stop_requested:
-                    self.root.after(0, lambda: self.status_label.config(text="❌ Process stopped by user."))
-                    break
-                
-                if is_4k:
-                    self.found_4k_videos.append(video['url'])
-                    self.root.after(0, lambda v=video: self._update_video_status(v, "✅ 4K Available!"))
-                else:
-                    self.root.after(0, lambda v=video: self._update_video_status(v, "❌ No 4K"))
+                # Sonuçları al
+                for future in as_completed(future_to_video, timeout=120):  # 2 dakika toplam timeout
+                    # Durduruluyor mu kontrol et
+                    if self.stop_requested:
+                        # Tüm futures'ı iptal et
+                        for f in future_to_video:
+                            if not f.done():
+                                f.cancel()
+                        break
+                    
+                    video = future_to_video[future]
+                    completed_count += 1
+                    
+                    try:
+                        is_4k = future.result(timeout=3)  # 3 saniye timeout per video
+                        
+                        if is_4k:
+                            self.found_4k_videos.append(video['url'])
+                            self.root.after(0, lambda v=video: self._update_video_status(v, "✅ 4K Available!"))
+                        else:
+                            self.root.after(0, lambda v=video: self._update_video_status(v, "❌ No 4K"))
+                    
+                    except Exception as e:
+                        print(f"Error checking video {video['id']}: {e}")
+                        failed_count += 1
+                        self.root.after(0, lambda v=video: self._update_video_status(v, "⚠️ Check Failed"))
+                    
+                    # Progress güncelle
+                    progress_text = f"🔍 Scanning: {completed_count}/{len(hd_videos)} ({len(self.found_4k_videos)} 4K found)"
+                    if failed_count > 0:
+                        progress_text += f" [{failed_count} failed]"
+                    self.root.after(0, lambda text=progress_text: self.status_label.config(text=text))
+            
+            # Timeout olan videoları kontrol et
+            remaining_videos = []
+            for future, video in future_to_video.items():
+                if not future.done() and not self.stop_requested:
+                    remaining_videos.append(video)
+                    self.root.after(0, lambda v=video: self._update_video_status(v, "⏰ Timeout"))
+            
+            if remaining_videos and not self.stop_requested:
+                timeout_text = f"⚠️ {len(remaining_videos)} videos timed out"
+                self.root.after(0, lambda text=timeout_text: self.status_label.config(text=text))
             
             # SD videoları için durum güncelle
             if not self.stop_requested:
@@ -2144,6 +2309,11 @@ class YouTube4KCheckerGUI:
                     self.root.after(0, lambda: self.status_label.config(text=f"❌ Stopped. {len(self.found_4k_videos)} 4K videos found so far."))
                 else:
                     self.root.after(0, lambda: self.status_label.config(text="❌ Process stopped by user."))
+                
+                # Stop edildiğinde 4K filter aktifse, waiting videoları gizlemek için filtreyi güncelle
+                if hasattr(self, 'show_4k_only_var') and self.show_4k_only_var.get():
+                    self.root.after(500, self.apply_4k_filter)  # Kısa delay ile filter güncelle
+                    
         except Exception as e:
             self.root.after(0, lambda: messagebox.showerror("Error", f"4K check error: {str(e)}"))
         finally:
@@ -2166,29 +2336,54 @@ class YouTube4KCheckerGUI:
                 
                 # 4K filter aktifse kontrol et
                 if hasattr(self, 'show_4k_only_var') and self.show_4k_only_var.get():
-                    # Sadece 4K olmayan VE waiting olmayan videoları gizle
-                    if '✅ 4K Available!' not in status and 'Waiting...' not in status:
-                        try:
-                            # Check if currently visible
-                            parent = self.video_tree.parent(item)
-                            if parent == '':  # Currently attached to root
-                                self.video_tree.detach(item)
-                                if not hasattr(self, 'detached_items'):
-                                    self.detached_items = []
-                                if item not in self.detached_items:
-                                    self.detached_items.append(item)
-                        except:
-                            pass
+                    # Eğer işlem stop edilmişse, sadece 4K Available olanları göster
+                    if hasattr(self, 'stop_requested') and self.stop_requested:
+                        if '✅ 4K Available!' not in status:
+                            try:
+                                # Check if currently visible
+                                parent = self.video_tree.parent(item)
+                                if parent == '':  # Currently attached to root
+                                    self.video_tree.detach(item)
+                                    if not hasattr(self, 'detached_items'):
+                                        self.detached_items = []
+                                    if item not in self.detached_items:
+                                        self.detached_items.append(item)
+                            except:
+                                pass
+                        else:
+                            # 4K ise görünür yap (eğer gizliyse)
+                            try:
+                                parent = self.video_tree.parent(item)
+                                if parent != '':  # Currently detached
+                                    self.video_tree.reattach(item, '', 'end')
+                                    if hasattr(self, 'detached_items') and item in self.detached_items:
+                                        self.detached_items.remove(item)
+                            except:
+                                pass
                     else:
-                        # 4K veya waiting ise görünür yap (eğer gizliyse)
-                        try:
-                            parent = self.video_tree.parent(item)
-                            if parent != '':  # Currently detached
-                                self.video_tree.reattach(item, '', 'end')
-                                if hasattr(self, 'detached_items') and item in self.detached_items:
-                                    self.detached_items.remove(item)
-                        except:
-                            pass
+                        # Normal durum: Sadece 4K olmayan VE waiting olmayan videoları gizle
+                        if '✅ 4K Available!' not in status and 'Waiting...' not in status:
+                            try:
+                                # Check if currently visible
+                                parent = self.video_tree.parent(item)
+                                if parent == '':  # Currently attached to root
+                                    self.video_tree.detach(item)
+                                    if not hasattr(self, 'detached_items'):
+                                        self.detached_items = []
+                                    if item not in self.detached_items:
+                                        self.detached_items.append(item)
+                            except:
+                                pass
+                        else:
+                            # 4K veya waiting ise görünür yap (eğer gizliyse)
+                            try:
+                                parent = self.video_tree.parent(item)
+                                if parent != '':  # Currently detached
+                                    self.video_tree.reattach(item, '', 'end')
+                                    if hasattr(self, 'detached_items') and item in self.detached_items:
+                                        self.detached_items.remove(item)
+                            except:
+                                pass
                 
                 break
         
@@ -2266,30 +2461,143 @@ class YouTube4KCheckerGUI:
             messagebox.showinfo("Result", "😔 No 4K videos found.\n\nThis playlist doesn't have 4K quality videos.")
     
     def check_4k_availability(self, video_url):
-        """4K kalite kontrolü - SSL hatası düzeltildi"""
+        """4K kalite kontrolü - Güvenilir ve hızlı yöntem"""
         try:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            }
+            # Video ID'yi çıkar
+            video_id = None
+            if 'watch?v=' in video_url:
+                video_id = video_url.split('watch?v=')[1].split('&')[0]
+            elif '/embed/' in video_url:
+                video_id = video_url.split('/embed/')[1].split('?')[0]
             
-            # SSL sertifika doğrulamasını devre dışı bırak
-            response = requests.get(video_url, headers=headers, timeout=10, verify=False)
+            if not video_id:
+                return False
             
-            if '2160p' in response.text or '"quality":"hd2160"' in response.text:
-                return True
+            # Önce hızlı format kontrolü yap
+            result = self.quick_format_check(video_id)
+            if result is not None:  # Başarılı oldu
+                return result
             
-            if '"qualityLabel":"2160p"' in response.text:
-                return True
+            # Fallback: YouTube API kontrolü (daha yavaş ama güvenilir)
+            try:
+                if hasattr(self, 'youtube') and self.youtube:
+                    request = self.youtube.videos().list(
+                        part='contentDetails',
+                        id=video_id
+                    )
+                    response = request.execute()
+                    
+                    if response['items']:
+                        video_info = response['items'][0]
+                        content_details = video_info.get('contentDetails', {})
+                        
+                        # Definition HD ise muhtemelen 4K var (basit kontrol)
+                        definition = content_details.get('definition', 'sd')
+                        if definition == 'hd':
+                            # HD ise basit sayfa kontrolü yap
+                            return self.simple_4k_check(video_id)
+                        else:
+                            return False
+                
+            except Exception as api_error:
+                print(f"API error for {video_id}: {api_error}")
+                # API hatası durumunda basit kontrol
+                pass
             
-            # Alternatif kontrol yöntemleri
-            if 'itag=313' in response.text or 'itag=315' in response.text:
-                return True
+            # Son çare: Basit kontrol
+            return self.simple_4k_check(video_id)
                 
         except Exception as e:
             print(f"4K check error for {video_url}: {e}")
-            pass
-        
-        return False
+            return False
+    
+    def quick_format_check(self, video_id):
+        """Hızlı 4K format kontrolü - None döner başarısız olursa"""
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Connection': 'keep-alive',
+            }
+            
+            # YouTube'un internal API endpoint'i
+            info_url = "https://www.youtube.com/youtubei/v1/player"
+            
+            payload = {
+                "context": {
+                    "client": {
+                        "clientName": "WEB",
+                        "clientVersion": "2.20240101.00.00"
+                    }
+                },
+                "videoId": video_id
+            }
+            
+            response = requests.post(
+                info_url, 
+                json=payload,
+                headers=headers,
+                timeout=6,  # Kısa timeout
+                verify=False
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Streaming data'yı kontrol et
+                streaming_data = data.get('streamingData', {})
+                adaptive_formats = streaming_data.get('adaptiveFormats', [])
+                
+                # 4K formatları ara
+                for fmt in adaptive_formats:
+                    height = fmt.get('height', 0)
+                    quality_label = fmt.get('qualityLabel', '')
+                    itag = fmt.get('itag', 0)
+                    
+                    # 4K formatlarını kontrol et
+                    if (height >= 2160 or 
+                        '2160p' in quality_label or 
+                        '4K' in quality_label or
+                        itag in [313, 315, 337, 401, 571]):
+                        return True
+                
+                return False
+            else:
+                # HTTP hatası - None döner
+                return None
+                
+        except Exception as e:
+            print(f"Quick format check error for {video_id}: {e}")
+            return None  # Hata durumunda None döner
+    
+    def simple_4k_check(self, video_id):
+        """En basit 4K kontrolü - video sayfasından"""
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+            
+            url = f"https://www.youtube.com/watch?v={video_id}"
+            response = requests.get(url, headers=headers, timeout=5, verify=False)
+            
+            if response.status_code == 200:
+                content = response.text
+                # 4K işaretlerini ara
+                indicators = [
+                    '"2160p"', '"qualityLabel":"2160p"', 'itag":313', 'itag":315',
+                    'height":2160', '"4K"', '2160p60'
+                ]
+                
+                for indicator in indicators:
+                    if indicator in content:
+                        return True
+            
+            return False
+            
+        except Exception as e:
+            print(f"Simple 4K check error for {video_id}: {e}")
+            return False
     
     def clear_all(self):
         """Tüm verileri temizle (authentication hariç)"""
