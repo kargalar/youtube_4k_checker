@@ -1383,13 +1383,22 @@ class YouTube4KCheckerGUI:
         
         self.video_tree.item(item, values=values)
         
-        # Satır rengini değiştir (seçili olanları vurgula)
+        # Satır rengini değiştir (seçili olanları vurgula) - Video ID'yi koru
+        current_tags = self.video_tree.item(item)['tags']
+        video_id = current_tags[0] if current_tags else None
+
         if values[0] == '✅':
-            # Seçili satırı yeşil tonuyla vurgula
-            self.video_tree.item(item, tags=('selected',))
+            # Seçili satırı yeşil tonuyla vurgula - Video ID'yi koru
+            if video_id:
+                self.video_tree.item(item, tags=(video_id, 'selected'))
+            else:
+                self.video_tree.item(item, tags=('selected',))
         else:
-            # Seçili değilse normal
-            self.video_tree.item(item, tags=('normal',))
+            # Seçili değilse normal - Video ID'yi koru
+            if video_id:
+                self.video_tree.item(item, tags=(video_id, 'normal'))
+            else:
+                self.video_tree.item(item, tags=('normal',))
         
         self.update_copy_button_state()
     
@@ -1414,7 +1423,14 @@ class YouTube4KCheckerGUI:
         for item in self.video_tree.get_children():
             values = list(self.video_tree.item(item, 'values'))
             values[0] = '✅'
-            self.video_tree.item(item, values=values, tags=('selected',))
+
+            # Video ID'yi koru
+            current_tags = self.video_tree.item(item)['tags']
+            video_id = current_tags[0] if current_tags else None
+            if video_id:
+                self.video_tree.item(item, values=values, tags=(video_id, 'selected'))
+            else:
+                self.video_tree.item(item, values=values, tags=('selected',))
         self.update_copy_button_state()
     
     def uncheck_all_videos(self):
@@ -1422,7 +1438,14 @@ class YouTube4KCheckerGUI:
         for item in self.video_tree.get_children():
             values = list(self.video_tree.item(item, 'values'))
             values[0] = '⬜'
-            self.video_tree.item(item, values=values, tags=('normal',))
+
+            # Video ID'yi koru
+            current_tags = self.video_tree.item(item)['tags']
+            video_id = current_tags[0] if current_tags else None
+            if video_id:
+                self.video_tree.item(item, values=values, tags=(video_id, 'normal'))
+            else:
+                self.video_tree.item(item, values=values, tags=('normal',))
         self.update_copy_button_state()
     
     def check_4k_only(self):
@@ -1430,12 +1453,23 @@ class YouTube4KCheckerGUI:
         for item in self.video_tree.get_children():
             values = list(self.video_tree.item(item, 'values'))
             status = values[5]  # Status column
+
+            # Video ID'yi koru
+            current_tags = self.video_tree.item(item)['tags']
+            video_id = current_tags[0] if current_tags else None
+
             if '✅ 4K Available!' in status:
                 values[0] = '✅'
-                self.video_tree.item(item, values=values, tags=('selected',))
+                if video_id:
+                    self.video_tree.item(item, values=values, tags=(video_id, 'selected'))
+                else:
+                    self.video_tree.item(item, values=values, tags=('selected',))
             else:
                 values[0] = '⬜'
-                self.video_tree.item(item, values=values, tags=('normal',))
+                if video_id:
+                    self.video_tree.item(item, values=values, tags=(video_id, 'normal'))
+                else:
+                    self.video_tree.item(item, values=values, tags=('normal',))
         self.update_copy_button_state()
     
     def copy_checked_urls(self):
