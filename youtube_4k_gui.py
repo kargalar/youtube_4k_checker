@@ -1442,11 +1442,11 @@ class YouTube4KCheckerGUI:
         """Copy URLs of checked videos to clipboard"""
         checked_urls = []
         checked_video_data = []
-        
+
         for item in self.video_tree.get_children():
             values = self.video_tree.item(item, 'values')
-            is_checked = values[0] == '☑️'
-            
+            is_checked = values[0] == '✅'  # Doğru emoji kullan
+
             if is_checked:
                 # Get video ID from tags
                 video_id = self.video_tree.item(item)['tags'][0] if self.video_tree.item(item)['tags'] else None
