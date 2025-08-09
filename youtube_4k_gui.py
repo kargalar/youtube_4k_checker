@@ -8,6 +8,7 @@ import google.auth.exceptions
 import requests
 import re
 import os
+from dotenv import load_dotenv
 import json
 import pickle
 from PIL import Image, ImageTk
@@ -53,8 +54,17 @@ class YouTube4KCheckerGUI:
         # Configure ttk styles for dark theme
         self.setup_dark_theme()
         
-        # API Key - Buraya kendi API key'inizi yazın
-        self.API_KEY = 'AIzaSyA3hWhKJmy2_0A7cfbB46va3XWsq-SeV2E'
+        # Ortam değişkenlerini yükle (.env desteği)
+        # .env dosyası proje kökünde veya bu dosyanın dizininde bulunabilir
+        try:
+            load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
+            load_dotenv()  # fallback: çalışma dizininden
+        except Exception:
+            pass
+
+        # API Key - ortam değişkeninden oku
+        # YOUTUBE_API_KEY adında bir değişken beklenir
+        self.API_KEY = os.getenv('YOUTUBE_API_KEY', '')
         self.api_key = self.API_KEY  # Eski uyumluluk için
         self.setup_youtube_api()
         
@@ -66,9 +76,15 @@ class YouTube4KCheckerGUI:
         self.oauth_scopes = ['https://www.googleapis.com/auth/youtube']
         self.oauth_redirect_uri = 'urn:ietf:wg:oauth:2.0:oob'  # Out-of-band mode
         
-        # OAuth2 credentials dosyası
-        self.client_secrets_file = os.path.join(os.path.dirname(__file__), 'client_secret.json')
-        self.token_file = os.path.join(os.path.dirname(__file__), 'token.pickle')
+        # OAuth2 credentials dosyası (ortam değişkenleriyle özelleştirilebilir)
+        self.client_secrets_file = os.getenv(
+            'CLIENT_SECRETS_FILE',
+            os.path.join(os.path.dirname(__file__), 'client_secret.json')
+        )
+        self.token_file = os.getenv(
+            'TOKEN_FILE',
+            os.path.join(os.path.dirname(__file__), 'token.pickle')
+        )
         
         # OAuth2 durumunu kontrol et
         self.check_existing_authentication()
@@ -86,6 +102,8 @@ class YouTube4KCheckerGUI:
         """YouTube API'yi başlat"""
         try:
             if not hasattr(self, 'youtube') or self.youtube is None:
+                if not self.API_KEY:
+                    raise ValueError("YOUTUBE_API_KEY ortam değişkeni tanımlı değil.")
                 self.youtube = build('youtube', 'v3', developerKey=self.API_KEY)
                 print("YouTube API initialized successfully")
         except Exception as e:

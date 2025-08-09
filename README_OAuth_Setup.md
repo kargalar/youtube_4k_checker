@@ -134,3 +134,15 @@ OAuth2 credentials are already configured! You can now use all features includin
 - Backup video URLs before removing
 
 **Ready to use! No additional setup required.** 🚀
+
+---
+
+## Keeping API keys and tokens out of Git (Important)
+
+- Do not commit real secrets. This repo includes a `.gitignore` that excludes `.env`, `client_secret.json`, and `token.pickle`.
+- Use `.env` to store secrets locally. Create it by copying `.env.example` to `.env` and fill in:
+  - `YOUTUBE_API_KEY` — Your YouTube Data API v3 key
+  - `CLIENT_SECRETS_FILE` — Path to OAuth client JSON (optional)
+  - `TOKEN_FILE` — Path to saved OAuth token (optional)
+
+On first run after adding `.env`, install dependencies to enable env loading.

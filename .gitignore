@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+*.pyo
+*.pyz
+*.pyw
+
+# Virtual envs
+.venv/
+venv/
+ENV/
+
+# PyInstaller build artifacts
+build/
+dist/
+*.spec
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+client_secret.json
+token.pickle
+
+# Logs
+*.log
