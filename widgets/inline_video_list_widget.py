@@ -42,7 +42,7 @@ class InlineVideoListWidget:
         for col, text in headers.items():
             self.video_tree.heading(col, text=text)
         # Widths
-        self.video_tree.column('#0', width=90, minwidth=90, anchor='center')
+        self.video_tree.column('#0', width=180, minwidth=160, anchor='center')
         widths = {
             'Check': (60, 60),
             'No': (50, 50),
@@ -53,10 +53,14 @@ class InlineVideoListWidget:
         for col, (w, m) in widths.items():
             self.video_tree.column(col, width=w, minwidth=m)
 
+        # Scrollbar and packing
         scrollbar = ttk.Scrollbar(tree_frame, orient='vertical', command=self.video_tree.yview)
         self.video_tree.configure(yscrollcommand=scrollbar.set)
         self.video_tree.pack(side='left', fill='both', expand=True)
         scrollbar.pack(side='right', fill='y')
+
+    # Scrollbar and packing
+    
 
     def pack(self, **kwargs):
         self.frame.pack(**kwargs)

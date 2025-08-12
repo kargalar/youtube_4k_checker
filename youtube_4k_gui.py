@@ -28,57 +28,60 @@ class YouTube4KCheckerGUI:
         self.root = root
         self.root.title("YouTube 4K Video Checker")
         self.root.geometry("1200x900")
-        
+
         # Modern professional dark theme with sophisticated colors
         self.colors = {
-            'bg_primary': '#1a1a1a',      # Rich dark gray
-            'bg_secondary': '#242424',    # Medium dark gray  
-            'bg_tertiary': '#2d2d2d',     # Lighter dark gray
-            'bg_hover': '#383838',        # Hover state
-            'text_primary': '#f5f5f5',    # Soft white
-            'text_secondary': '#b8b8b8',  # Muted gray
-            'text_accent': '#6366f1',     # Professional indigo
-            'accent_blue': '#3b82f6',     # Clean blue
-            'accent_green': '#10b981',    # Professional emerald
-            'accent_orange': '#f59e0b',   # Warm amber
-            'accent_red': '#ef4444',      # Clean red
-            'accent_purple': '#8b5cf6',   # Sophisticated violet
-            'accent_pink': '#ec4899',     # Refined pink
-            'accent_yellow': '#eab308',   # Professional yellow
-            'accent_cyan': '#06b6d4',     # Modern cyan
-            'border': '#404040',          # Subtle border
-            'gradient_start': '#4f46e5',  # Indigo gradient
-            'gradient_end': '#7c3aed'     # Purple gradient
+            'bg_primary': '#1a1a1a',
+            'bg_secondary': '#242424',
+            'bg_tertiary': '#2d2d2d',
+            'bg_hover': '#383838',
+            'text_primary': '#f5f5f5',
+            'text_secondary': '#b8b8b8',
+            'text_accent': '#6366f1',
+            'accent_blue': '#3b82f6',
+            'accent_green': '#10b981',
+            'accent_orange': '#f59e0b',
+            'accent_red': '#ef4444',
+            'accent_purple': '#8b5cf6',
+            'accent_pink': '#ec4899',
+            'accent_yellow': '#eab308',
+            'accent_cyan': '#06b6d4',
+            'border': '#404040',
+            'gradient_start': '#4f46e5',
+            'gradient_end': '#7c3aed'
         }
-        
+
         self.root.configure(bg=self.colors['bg_primary'])
-        
+
         # Configure ttk styles for dark theme
         self.setup_dark_theme()
-        
-        # Ortam değişkenlerini yükle (.env desteği)
-        # .env dosyası proje kökünde veya bu dosyanın dizininde bulunabilir
+
+        # Load environment variables (.env support)
         try:
             load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
-            load_dotenv()  # fallback: çalışma dizininden
+            load_dotenv()
         except Exception:
             pass
 
-        # API Key - ortam değişkeninden oku
-        # YOUTUBE_API_KEY adında bir değişken beklenir
+        # API Key
         self.API_KEY = os.getenv('YOUTUBE_API_KEY', '')
-        self.api_key = self.API_KEY  # Eski uyumluluk için
+        self.api_key = self.API_KEY
         self.setup_youtube_api()
-        
-        # OAuth2 için değişkenler
+
+        # OAuth2 state
         self.authenticated_youtube = None
         self.credentials = None
         self.flow = None
         self.is_authenticated = False
         self.oauth_scopes = ['https://www.googleapis.com/auth/youtube']
-        self.oauth_redirect_uri = 'urn:ietf:wg:oauth:2.0:oob'  # Out-of-band mode
-        
-        # OAuth2 credentials dosyası (ortam değişkenleriyle özelleştirilebilir)
+        self.oauth_redirect_uri = 'urn:ietf:wg:oauth:2.0:oob'
+        # Guards to prevent double-open
+        self.oauth_dialog = None
+        self.oauth_dialog_open = False
+        self.oauth_browser_opened = False
+        self.oauth_flow_active = False
+
+        # OAuth2 files
         self.client_secrets_file = os.getenv(
             'CLIENT_SECRETS_FILE',
             os.path.join(os.path.dirname(__file__), 'client_secret.json')
@@ -87,17 +90,17 @@ class YouTube4KCheckerGUI:
             'TOKEN_FILE',
             os.path.join(os.path.dirname(__file__), 'token.pickle')
         )
-        
-        # OAuth2 durumunu kontrol et
+
+        # Check existing auth
         self.check_existing_authentication()
-        
-        # İşlem durumu
+
+        # Processing state
         self.is_processing = False
-        self.stop_requested = False  # İşlemi durdurma talebi
+        self.stop_requested = False
         self.found_4k_videos = []
-        self.thumbnail_cache = {}  # Thumbnail önbelleği
-        self.thumbnail_refs = []   # Thumbnail referanslarını korumak için
-        
+        self.thumbnail_cache = {}
+        self.thumbnail_refs = []
+
         self.create_widgets()
     
     def setup_youtube_api(self):
@@ -162,8 +165,22 @@ class YouTube4KCheckerGUI:
     def start_oauth_flow(self):
         """OAuth2 flow'unu başlat"""
         try:
+            # Global guard for re-entrancy (e.g., double-clicks)
+            if getattr(self, 'oauth_flow_active', False):
+                return
+            self.oauth_flow_active = True
+            # Prevent re-entrancy / double clicks opening multiple dialogs/tabs
+            if getattr(self, 'oauth_dialog_open', False) and self.oauth_dialog:
+                try:
+                    self.oauth_dialog.lift()
+                    self.oauth_dialog.focus_force()
+                except Exception:
+                    pass
+                self.oauth_flow_active = False
+                return
             if not os.path.exists(self.client_secrets_file):
                 messagebox.showerror("Error", f"OAuth2 credentials file not found: {self.client_secrets_file}")
+                self.oauth_flow_active = False
                 return
             
             self.flow = Flow.from_client_secrets_file(
@@ -175,13 +192,17 @@ class YouTube4KCheckerGUI:
             auth_url, _ = self.flow.authorization_url(prompt='consent')
             
             # Browser'da URL'yi aç
-            webbrowser.open(auth_url)
+            # Ensure we only auto-open once per flow
+            if not getattr(self, 'oauth_browser_opened', False):
+                webbrowser.open(auth_url)
+                self.oauth_browser_opened = True
             
             # Kullanıcıdan authorization code iste
             self.show_oauth_dialog(auth_url)
             
         except Exception as e:
             messagebox.showerror("Error", f"OAuth flow could not be started: {str(e)}")
+            self.oauth_flow_active = False
 
     def show_oauth_dialog(self, auth_url):
         """OAuth2 authorization dialog göster"""
@@ -191,6 +212,19 @@ class YouTube4KCheckerGUI:
         dialog.configure(bg=self.colors['bg_primary'])
         dialog.transient(self.root)
         dialog.grab_set()
+        # Mark dialog as open and keep a reference
+        self.oauth_dialog = dialog
+        self.oauth_dialog_open = True
+        
+        def on_close():
+            # Reset guards when dialog closes
+            self.oauth_dialog_open = False
+            self.oauth_dialog = None
+            self.oauth_flow_active = False
+            self.oauth_browser_opened = False
+            # Do not reset oauth_browser_opened here to avoid double-open if user re-opens quickly
+            dialog.destroy()
+        dialog.protocol("WM_DELETE_WINDOW", on_close)
         
         # Dialog içeriği
         tk.Label(dialog, text="🔐 YouTube Authentication Required", 
@@ -259,8 +293,15 @@ class YouTube4KCheckerGUI:
                   command=lambda: self.complete_oauth(code_entry.get(), dialog),
                   style='Success.TButton').pack(side='left', padx=5)
         
+        def on_cancel():
+            # User-cancelled auth; reset dialog state guards
+            self.oauth_dialog_open = False
+            self.oauth_dialog = None
+            self.oauth_flow_active = False
+            self.oauth_browser_opened = False
+            dialog.destroy()
         ttk.Button(btn_frame, text="❌ Cancel", 
-                  command=dialog.destroy,
+                  command=on_cancel,
                   style='Danger.TButton').pack(side='left', padx=5)
 
     def complete_oauth(self, authorization_code, dialog):
@@ -293,6 +334,11 @@ class YouTube4KCheckerGUI:
                 pickle.dump(self.credentials, token)
             
             dialog.destroy()
+            # Reset dialog/browser guards after successful auth
+            self.oauth_dialog_open = False
+            self.oauth_dialog = None
+            self.oauth_browser_opened = False
+            self.oauth_flow_active = False
             messagebox.showinfo("Success", "✅ Authentication successful!\n\nYou can now remove videos from your YouTube playlists.")
             
             # Authentication status'unu güncelle
@@ -306,6 +352,14 @@ class YouTube4KCheckerGUI:
                 messagebox.showerror("Error", "Access was denied. Please make sure you:\n1. Are logged in as m.islam0422@gmail.com\n2. Click 'Allow' when prompted\n3. Are added as a test user in Google Cloud Console")
             else:
                 messagebox.showerror("Error", f"Authentication failed: {error_msg}\n\nPlease try again or check your internet connection.")
+            # On any error, allow another attempt
+            try:
+                dialog.destroy()
+            except Exception:
+                pass
+            self.oauth_dialog_open = False
+            self.oauth_dialog = None
+            self.oauth_flow_active = False
 
     def logout_oauth(self):
         """OAuth2 logout"""
@@ -574,7 +628,7 @@ class YouTube4KCheckerGUI:
                         borderwidth=1,
                         relief='solid',
                         bordercolor=self.colors['border'],
-                        rowheight=65,
+                        rowheight=110,
                         font=('Segoe UI', 10))
 
         style.configure('Dark.Treeview.Heading',
@@ -879,8 +933,6 @@ class YouTube4KCheckerGUI:
             highlightthickness=1
         )
 
-    # (Preview panel removed as requested)
-
         # Treeview frame
         tree_frame = ttk.Frame(tree_container, style='Dark.TFrame')
         tree_frame.pack(fill='both', expand=True, padx=1, pady=1)
@@ -908,7 +960,7 @@ class YouTube4KCheckerGUI:
             self.video_tree.heading(col, text=header_text)
 
         # Column widths (configure tree column #0 for thumbnails)
-        self.video_tree.column('#0', width=90, minwidth=90, anchor='center')
+        self.video_tree.column('#0', width=180, minwidth=160, anchor='center')
         widths = {
             'Check': (60, 60),
             'No': (50, 50),
@@ -934,7 +986,6 @@ class YouTube4KCheckerGUI:
         # Bind events
         self.video_tree.bind('<Button-3>', self.show_context_menu)  # Right-click
         self.video_tree.bind('<Button-1>', self.on_tree_click)  # Left-click
-    # (Selection preview binding removed)
 
         # Create context menu
         self.create_context_menu()
@@ -1807,9 +1858,9 @@ class YouTube4KCheckerGUI:
                     response = requests.get(url, headers=headers, **config)
                     
                     if response.status_code == 200 and len(response.content) > 1000:  # Ensure it's a real image
-                        # PIL ile resmi yükle ve yeniden boyutlandır
+                        # PIL ile resmi yükle ve daha büyük boyuta yeniden boyutlandır (160x90)
                         image = Image.open(io.BytesIO(response.content))
-                        image = image.resize((60, 40), Image.Resampling.LANCZOS)
+                        image = image.resize((160, 90), Image.Resampling.LANCZOS)
                         
                         # Tkinter uyumlu hale getir
                         photo = ImageTk.PhotoImage(image)
@@ -2078,9 +2129,9 @@ class YouTube4KCheckerGUI:
         self.update_video_count(len(self.video_details))
 
         # Inform and start 4K scanning now that the list is rendered
-        self.status_label.config(text=f"📺 {len(self.video_details)} videos listed. 4K check starting...")
+        self.status_label.config(text=f"📺 {len(self.video_details)} videos listed. Starting sequential 4K check...")
         self.root.after(0, self.check_4k_videos)
-    
+
     def _load_thumbnail_async(self, item_id, video_id, thumbnail_url):
         """Thumbnail'i asenkron olarak yükle - Akıllı retry sistemi"""
         try:
@@ -2182,13 +2233,13 @@ class YouTube4KCheckerGUI:
         thread.start()
     
     def _check_4k_thread(self):
-        """4K kontrol işlemini thread'de yap - Paralel işleme ile hızlandırılmış"""
+        """4K kontrol işlemini thread'de yap - Sıra sıra (sequential) ve görünür ilerleme ile"""
         self.is_processing = True
         self.stop_requested = False
         # UI updates must be done on the main thread
         self.root.after(0, self.progress.start)
-        self.root.after(0, lambda: self.stop_btn.config(state='normal'))  # Stop butonunu aktif et
-        self.root.after(0, lambda: self.copy_btn.config(state='disabled'))  # Copy butonunu deaktif et
+        self.root.after(0, lambda: self.stop_btn.config(state='normal'))
+        self.root.after(0, lambda: self.copy_btn.config(state='disabled'))
         self.found_4k_videos = []
 
         try:
@@ -2203,63 +2254,35 @@ class YouTube4KCheckerGUI:
                 self.root.after(0, self._show_results)
                 return
 
-            # Paralel işleme için ThreadPoolExecutor kullan - daha az thread, daha güvenilir
-            max_workers = min(6, len(hd_videos))  # Maksimum 6 thread (daha stabil)
+            total = len(hd_videos)
             completed_count = 0
             failed_count = 0
+            self.root.after(0, lambda: self.status_label.config(text=f"🚶‍♂️ Sequential 4K scanning: 0/{total}"))
 
-            self.root.after(0, lambda: self.status_label.config(text=f"🚀 Smart 4K scanning with {max_workers} threads..."))
+            for video in hd_videos:
+                if self.stop_requested:
+                    break
 
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                # Tüm videoları submit et
-                future_to_video = {
-                    executor.submit(self.check_4k_availability, video['url']): video
-                    for video in hd_videos
-                }
+                # Videoyu kontrol etmeden önce durumunu güncelle
+                self.root.after(0, lambda v=video: self._update_video_status(v, "🔎 Checking..."))
 
-                # Sonuçları al
-                for future in as_completed(future_to_video, timeout=120):  # 2 dakika toplam timeout
-                    # Durduruluyor mu kontrol et
-                    if self.stop_requested:
-                        # Tüm futures'ı iptal et
-                        for f in future_to_video:
-                            if not f.done():
-                                f.cancel()
-                        break
+                try:
+                    is_4k = self.check_4k_availability(video['url'])
+                    if is_4k:
+                        self.found_4k_videos.append(video['url'])
+                        self.root.after(0, lambda v=video: self._update_video_status(v, "✅ 4K Available!"))
+                    else:
+                        self.root.after(0, lambda v=video: self._update_video_status(v, "❌ No 4K"))
+                except Exception as e:
+                    print(f"Error checking video {video['id']}: {e}")
+                    failed_count += 1
+                    self.root.after(0, lambda v=video: self._update_video_status(v, "⚠️ Check Failed"))
 
-                    video = future_to_video[future]
-                    completed_count += 1
-
-                    try:
-                        is_4k = future.result(timeout=3)  # 3 saniye timeout per video
-
-                        if is_4k:
-                            self.found_4k_videos.append(video['url'])
-                            self.root.after(0, lambda v=video: self._update_video_status(v, "✅ 4K Available!"))
-                        else:
-                            self.root.after(0, lambda v=video: self._update_video_status(v, "❌ No 4K"))
-
-                    except Exception as e:
-                        print(f"Error checking video {video['id']}: {e}")
-                        failed_count += 1
-                        self.root.after(0, lambda v=video: self._update_video_status(v, "⚠️ Check Failed"))
-
-                    # Progress güncelle
-                    progress_text = f"🔍 Scanning: {completed_count}/{len(hd_videos)} ({len(self.found_4k_videos)} 4K found)"
-                    if failed_count > 0:
-                        progress_text += f" [{failed_count} failed]"
-                    self.root.after(0, lambda text=progress_text: self.status_label.config(text=text))
-
-            # Timeout olan videoları kontrol et
-            remaining_videos = []
-            for future, video in future_to_video.items():
-                if not future.done() and not self.stop_requested:
-                    remaining_videos.append(video)
-                    self.root.after(0, lambda v=video: self._update_video_status(v, "⏰ Timeout"))
-
-            if remaining_videos and not self.stop_requested:
-                timeout_text = f"⚠️ {len(remaining_videos)} videos timed out"
-                self.root.after(0, lambda text=timeout_text: self.status_label.config(text=text))
+                completed_count += 1
+                progress_text = f"🔍 Scanning: {completed_count}/{total} ({len(self.found_4k_videos)} 4K found)"
+                if failed_count > 0:
+                    progress_text += f" [{failed_count} failed]"
+                self.root.after(0, lambda text=progress_text: self.status_label.config(text=text))
 
             # SD videoları için durum güncelle
             if not self.stop_requested:
@@ -2279,7 +2302,7 @@ class YouTube4KCheckerGUI:
 
                 # Stop edildiğinde 4K filter aktifse, waiting videoları gizlemek için filtreyi güncelle
                 if hasattr(self, 'show_4k_only_var') and self.show_4k_only_var.get():
-                    self.root.after(500, self.apply_4k_filter)  # Kısa delay ile filter güncelle
+                    self.root.after(500, self.apply_4k_filter)
 
         except Exception as e:
             self.root.after(0, lambda: messagebox.showerror("Error", f"4K check error: {str(e)}"))
@@ -2288,7 +2311,7 @@ class YouTube4KCheckerGUI:
             self.stop_requested = False
             # Ensure UI teardown happens on the main thread
             self.root.after(0, self.progress.stop)
-            self.root.after(0, lambda: self.stop_btn.config(state='disabled'))  # Stop butonunu deaktif et
+            self.root.after(0, lambda: self.stop_btn.config(state='disabled'))
     
     def _update_video_status(self, video, status):
         """Video durumunu güncelle"""
