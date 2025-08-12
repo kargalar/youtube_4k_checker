@@ -22,7 +22,8 @@ class InlineVideoListWidget:
         tree_frame = ttk.Frame(self.frame, style='Dark.TFrame')
         tree_frame.pack(fill='both', expand=True, padx=1, pady=1)
 
-        columns = ('Check', 'No', 'Title', 'Quality', 'Status')
+        # Columns: remove explicit Select column; use row selection highlighting instead
+        columns = ('No', 'Title', 'Quality', 'Status')
         self.video_tree = ttk.Treeview(
             tree_frame,
             columns=columns,
@@ -33,8 +34,7 @@ class InlineVideoListWidget:
         # Headers
         self.video_tree.heading('#0', text='🖼️')
         headers = {
-            'Check': '☑️ Select',
-            'No': '#️⃣ No',
+            'No': '#',
             'Title': '🎬 Video Title',
             'Quality': '📺 Quality',
             'Status': '✨ 4K Status',
@@ -44,8 +44,7 @@ class InlineVideoListWidget:
         # Widths
         self.video_tree.column('#0', width=180, minwidth=160, anchor='center')
         widths = {
-            'Check': (60, 60),
-            'No': (50, 50),
+            'No': (36, 30),
             'Title': (450, 200),
             'Quality': (100, 100),
             'Status': (140, 140),
