@@ -983,8 +983,8 @@ class YouTube4KCheckerGUI:
         
         # Ultra-dark menu items with colorful icons and better spacing
         self.context_menu.add_command(
-            label="  📋  Copy Video URL", 
-            command=self.copy_selected_url,
+            label="  📋  Copy Selected URLs",
+            command=self.copy_checked_urls,
             background=self.colors['bg_primary'],
             activebackground=self.colors['accent_green'],
             foreground=self.colors['text_primary'],
