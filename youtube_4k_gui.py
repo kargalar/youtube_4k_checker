@@ -1619,60 +1619,40 @@ class YouTube4KCheckerGUI:
                     continue
                     
                 values = self.video_tree.item(item, 'values')
-                if len(values) > 5:  # Status column exists
+                if len(values) >= 5:  # Status column exists
                     status = values[4]  # Status column
                     # 4K video veya henüz kontrol edilmemiş (Waiting) ise göster
                     # Ancak eğer işlem stop edilmişse, sadece 4K Available olanları göster
                     if hasattr(self, 'stop_requested') and self.stop_requested:
                         # Stop edilmişse sadece 4K available olanları göster
                         if '✅ 4K Available!' in status:
-                            # 4K video - görünür yap (eğer gizliyse)
+                            # 4K video - görünür yap (unconditionally reattach)
                             try:
-                                parent = self.video_tree.parent(item)
-                                if parent == '':  # Already attached to root
-                                    visible_count += 1
-                                else:  # Need to reattach
-                                    self.video_tree.reattach(item, '', 'end')
-                                    visible_count += 1
+                                self.video_tree.reattach(item, '', 'end')
+                                visible_count += 1
                             except:
-                                try:
-                                    self.video_tree.reattach(item, '', 'end')
-                                    visible_count += 1
-                                except:
-                                    pass
+                                pass
                         else:
                             # Waiting veya No 4K - gizle
                             try:
-                                parent = self.video_tree.parent(item)
-                                if parent == '':  # Currently attached to root
-                                    self.video_tree.detach(item)
-                                    self.detached_items.append(item)
+                                self.video_tree.detach(item)
+                                self.detached_items.append(item)
                             except:
                                 pass
                     else:
                         # Normal durum: 4K video veya henüz kontrol edilmemiş (Waiting) ise göster
                         if '✅ 4K Available!' in status or 'Waiting...' in status:
-                            # 4K video veya waiting - görünür yap (eğer gizliyse)
+                            # 4K video veya waiting - görünür yap (unconditionally reattach)
                             try:
-                                parent = self.video_tree.parent(item)
-                                if parent == '':  # Already attached to root
-                                    visible_count += 1
-                                else:  # Need to reattach
-                                    self.video_tree.reattach(item, '', 'end')
-                                    visible_count += 1
+                                self.video_tree.reattach(item, '', 'end')
+                                visible_count += 1
                             except:
-                                try:
-                                    self.video_tree.reattach(item, '', 'end')
-                                    visible_count += 1
-                                except:
-                                    pass
+                                pass
                         else:
                             # 4K değil ve waiting de değil - gizle
                             try:
-                                parent = self.video_tree.parent(item)
-                                if parent == '':  # Currently attached to root
-                                    self.video_tree.detach(item)
-                                    self.detached_items.append(item)
+                                self.video_tree.detach(item)
+                                self.detached_items.append(item)
                             except:
                                 pass
             
@@ -1685,7 +1665,7 @@ class YouTube4KCheckerGUI:
                 for item in self.video_tree.get_children():
                     try:
                         values = self.video_tree.item(item, 'values')
-                        if len(values) > 5:
+                        if len(values) >= 5:
                             status = values[4]
                             if '✅ 4K Available!' in status:
                                 k4_count += 1
@@ -1721,9 +1701,8 @@ class YouTube4KCheckerGUI:
                 for item in self._all_tree_items:
                     try:
                         if self.video_tree.exists(item):
-                            parent = self.video_tree.parent(item)
-                            if parent != '':  # Not attached to root
-                                self.video_tree.reattach(item, '', 'end')
+                            # Reattach unconditionally to show all items again
+                            self.video_tree.reattach(item, '', 'end')
                     except:
                         pass
             
@@ -2389,7 +2368,7 @@ class YouTube4KCheckerGUI:
             for item in self.video_tree.get_children():
                 try:
                     values = self.video_tree.item(item, 'values')
-                    if len(values) > 5:
+                    if len(values) >= 5:
                         item_status = values[4]
                         if '✅ 4K Available!' in item_status:
                             k4_count += 1
