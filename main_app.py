@@ -190,6 +190,9 @@ class YouTube4KCheckerApp:
 
         # Status bar
         self.ui_manager.register_element('status_label', self.status_widgets['status_label'])
+        # Copy icon inside status bar for error messages
+        if 'copy_button' in self.status_widgets:
+            self.ui_manager.register_element('status_copy_button', self.status_widgets['copy_button'])
         self.ui_manager.register_element('count_label', self.status_widgets['count_label'])
 
         # Tree and services

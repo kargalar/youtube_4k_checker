@@ -388,6 +388,18 @@ class WidgetFactory:
             anchor='w'
         )
         status_label.pack(side='left', fill='x', expand=True)
+
+        # Copy icon button (shown only on errors)
+        copy_button = ttk.Button(
+            content_frame,
+            text="📋",
+            width=2,
+            style='Tool.TButton',
+            takefocus=False
+        )
+        # Hidden by default; UIManager will show on errors
+        copy_button.pack(side='left', padx=(6, 6))
+        copy_button.pack_forget()
         
         # Video count label
         count_label = tk.Label(
@@ -402,6 +414,7 @@ class WidgetFactory:
         return {
             'frame': status_frame,
             'status_label': status_label,
+            'copy_button': copy_button,
             'count_label': count_label
         }
     

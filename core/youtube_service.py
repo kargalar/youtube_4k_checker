@@ -11,6 +11,7 @@ from google_auth_oauthlib.flow import Flow, InstalledAppFlow
 from google.auth.transport.requests import Request
 import google.auth.exceptions
 import sys
+import glob
 
 # Load environment variables
 load_dotenv()
@@ -43,6 +44,9 @@ class YouTubeAPIService:
         # 4) sys._MEIPASS extracted bundle dir (for onefile)
         # 5) Module directory (dev mode)
         candidates = []
+        exe_dir = None
+        bundle_dir = None
+        module_dir = None
         try:
             if self.client_secrets_file and os.path.isabs(self.client_secrets_file):
                 candidates.append(self.client_secrets_file)
@@ -64,6 +68,15 @@ class YouTubeAPIService:
         try:
             module_dir = os.path.dirname(os.path.abspath(__file__))
             candidates.append(os.path.join(module_dir, 'client_secret.json'))
+        except Exception:
+            pass
+
+        # Also search for typical Google file names like client_secret_*.json in these dirs
+        try:
+            variant_dirs = set(filter(None, [os.getcwd(), exe_dir, bundle_dir, module_dir]))
+            for d in variant_dirs:
+                for p in glob.glob(os.path.join(d, 'client_secret*.json')):
+                    candidates.append(p)
         except Exception:
             pass
 
@@ -169,7 +182,7 @@ class YouTubeAPIService:
                 pass
             if not os.path.exists(self.client_secrets_file):
                 if callback:
-                    callback("❌ client_secret.json not found! Please add your OAuth credentials.")
+                    callback("❌ client_secret.json not found! Place it next to the app or set CLIENT_SECRETS_FILE.")
                 return False
             
             # OAuth 2.0 flow
@@ -240,7 +253,7 @@ class YouTubeAPIService:
                 pass
             if not os.path.exists(self.client_secrets_file):
                 if callback:
-                    callback("❌ client_secret.json not found! Place it next to the app.")
+                    callback("❌ client_secret.json not found! Place it next to the app or set CLIENT_SECRETS_FILE.")
                 return None
 
             flow = InstalledAppFlow.from_client_secrets_file(
@@ -269,7 +282,7 @@ class YouTubeAPIService:
                 if isinstance(url, str) and url:
                     opened = False
                     try:
-                        import webbrowser, os
+                        import webbrowser
                         opened = webbrowser.open(url, new=2)
                         if not opened:
                             opened = webbrowser.open_new_tab(url)

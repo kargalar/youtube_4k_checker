@@ -18,7 +18,8 @@ class UIManager:
             'is_checking': False,
             'is_loading': False,
             'current_operation': None,
-            'last_update': None
+            'last_update': None,
+            'last_status_message': ''
         }
     
     def register_element(self, name, element):
@@ -44,13 +45,50 @@ class UIManager:
         """Update status bar message"""
         def do_update():
             status_label = self._ui_elements.get('status_label')
+            copy_btn = self._ui_elements.get('status_copy_button')
             if status_label:
                 status_label.config(text=message)
                 if color:
                     status_label.config(foreground=color)
                 self._state['last_update'] = datetime.now()
+                self._state['last_status_message'] = message
+            # Show copy icon for error/warning messages
+            try:
+                if copy_btn:
+                    msg = str(message)
+                    is_error_like = any(sym in msg for sym in ['❌', '⚠️']) or 'error' in msg.lower()
+                    if is_error_like:
+                        # attach command lazily
+                        copy_btn.configure(command=self._copy_last_status_to_clipboard)
+                        copy_btn.pack(side='left', padx=(6, 6))
+                        # Update tooltip-like text via widget 'text' if needed
+                    else:
+                        copy_btn.pack_forget()
+            except Exception as e:
+                print(f"UI copy icon update error: {e}")
         
         self.safe_update(do_update)
+
+    def _copy_last_status_to_clipboard(self):
+        """Copy last status message to clipboard and give brief feedback."""
+        def do_copy():
+            try:
+                msg = self._state.get('last_status_message', '')
+                if not msg:
+                    return
+                # Use root clipboard interface
+                self.root.clipboard_clear()
+                self.root.clipboard_append(msg)
+                # Optional: flash a tiny confirmation in status (non-intrusive)
+                # Do not change color; add a short suffix then revert
+                status_label = self._ui_elements.get('status_label')
+                if status_label:
+                    status_label.after(0, lambda: status_label.config(text=f"{msg}  (copied)"))
+                    # revert after 1.2s
+                    status_label.after(1200, lambda: status_label.config(text=msg))
+            except Exception as e:
+                print(f"Clipboard copy error: {e}")
+        self.safe_update(do_copy)
     
     def update_progress(self, current, total, operation=None):
         """Update progress bar and related UI"""
