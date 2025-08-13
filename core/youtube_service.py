@@ -10,6 +10,7 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import Flow, InstalledAppFlow
 from google.auth.transport.requests import Request
 import google.auth.exceptions
+import sys
 
 # Load environment variables
 load_dotenv()
@@ -27,6 +28,68 @@ class YouTubeAPIService:
         self.is_authenticated = False
         self.authenticated_youtube = None  # Service built with OAuth credentials
         self.last_auth_url = None
+        # Ensure paths are resolved for frozen apps
+        try:
+            self._resolve_paths()
+        except Exception:
+            pass
+
+    def _resolve_paths(self):
+        """Resolve client_secrets and token paths for dev and PyInstaller (frozen) builds."""
+        # Resolve client_secret.json search order:
+        # 1) Existing set path if absolute and exists
+        # 2) Current working directory
+        # 3) Executable directory (for frozen exe)
+        # 4) sys._MEIPASS extracted bundle dir (for onefile)
+        # 5) Module directory (dev mode)
+        candidates = []
+        try:
+            if self.client_secrets_file and os.path.isabs(self.client_secrets_file):
+                candidates.append(self.client_secrets_file)
+        except Exception:
+            pass
+        try:
+            candidates.append(os.path.join(os.getcwd(), 'client_secret.json'))
+        except Exception:
+            pass
+        try:
+            if getattr(sys, 'frozen', False):
+                exe_dir = os.path.dirname(sys.executable)
+                candidates.append(os.path.join(exe_dir, 'client_secret.json'))
+                bundle_dir = getattr(sys, '_MEIPASS', None)
+                if bundle_dir:
+                    candidates.append(os.path.join(bundle_dir, 'client_secret.json'))
+        except Exception:
+            pass
+        try:
+            module_dir = os.path.dirname(os.path.abspath(__file__))
+            candidates.append(os.path.join(module_dir, 'client_secret.json'))
+        except Exception:
+            pass
+
+        for p in candidates:
+            try:
+                if p and os.path.exists(p):
+                    self.client_secrets_file = p
+                    break
+            except Exception:
+                continue
+
+        # Resolve token storage path to a writable user directory
+        try:
+            base_dir = None
+            if os.name == 'nt':
+                base_dir = os.getenv('LOCALAPPDATA')
+                if not base_dir:
+                    base_dir = os.path.join(os.path.expanduser('~'), 'AppData', 'Local')
+            else:
+                base_dir = os.path.join(os.path.expanduser('~'), '.config')
+            app_dir = os.path.join(base_dir, 'youtube_4k_checker') if base_dir else os.path.expanduser('~')
+            os.makedirs(app_dir, exist_ok=True)
+            self.token_file = os.path.join(app_dir, 'token.pickle')
+        except Exception:
+            # Fallback to current working directory
+            self.token_file = os.path.join(os.getcwd(), 'token.pickle')
         
     def setup_youtube_api(self):
         """Initialize YouTube API service with retry mechanism"""
@@ -99,6 +162,11 @@ class YouTubeAPIService:
     def authenticate_oauth(self, callback=None):
         """Perform OAuth authentication"""
         try:
+            # Ensure paths are ready (works for frozen exe)
+            try:
+                self._resolve_paths()
+            except Exception:
+                pass
             if not os.path.exists(self.client_secrets_file):
                 if callback:
                     callback("❌ client_secret.json not found! Please add your OAuth credentials.")
@@ -128,6 +196,10 @@ class YouTubeAPIService:
     def complete_oauth(self, auth_code, callback=None):
         """Complete OAuth flow with authorization code"""
         try:
+            try:
+                self._resolve_paths()
+            except Exception:
+                pass
             flow = Flow.from_client_secrets_file(
                 self.client_secrets_file,
                 scopes=['https://www.googleapis.com/auth/youtube.readonly']
@@ -162,6 +234,10 @@ class YouTubeAPIService:
         """Start OAuth; prefer local server flow (auto browser), fallback to manual URL."""
         # Try local server flow first (recommended by Google)
         try:
+            try:
+                self._resolve_paths()
+            except Exception:
+                pass
             if not os.path.exists(self.client_secrets_file):
                 if callback:
                     callback("❌ client_secret.json not found! Place it next to the app.")
@@ -233,6 +309,10 @@ class YouTubeAPIService:
     def check_existing_authentication(self):
         """Check and load existing OAuth credentials if available."""
         try:
+            try:
+                self._resolve_paths()
+            except Exception:
+                pass
             if os.path.exists(self.token_file):
                 with open(self.token_file, 'rb') as token:
                     self.credentials = pickle.load(token)

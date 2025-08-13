@@ -231,12 +231,20 @@ class YouTube4KCheckerApp:
         self.auth_widgets['save_api_key_button'].configure(command=_save_api_key)
 
         def _login():
-            self.youtube_service.start_oauth_flow(callback=self.ui_manager.update_status)
-            # After login, refresh auth status
-            try:
-                self.update_auth_status()
-            except Exception:
-                pass
+            import threading
+            def _worker():
+                # Show initial status
+                try:
+                    self.ui_manager.update_status("🔐 Starting Google login...")
+                except Exception:
+                    pass
+                self.youtube_service.start_oauth_flow(callback=self.ui_manager.update_status)
+                # After login, refresh auth status on UI thread
+                try:
+                    self.ui_manager.safe_update(self.update_auth_status)
+                except Exception:
+                    pass
+            threading.Thread(target=_worker, daemon=True).start()
         self.auth_widgets['login_button'].configure(command=_login)
         self.auth_widgets['logout_button'].configure(
             command=self.youtube_service.logout_oauth
