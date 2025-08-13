@@ -7,7 +7,7 @@ import re
 import pickle
 from dotenv import load_dotenv
 from googleapiclient.discovery import build
-from google_auth_oauthlib.flow import Flow
+from google_auth_oauthlib.flow import Flow, InstalledAppFlow
 from google.auth.transport.requests import Request
 import google.auth.exceptions
 
@@ -158,25 +158,60 @@ class YouTubeAPIService:
             return False
 
     # --- Compatibility helpers expected by main_app.py ---
-    def start_oauth_flow(self):
-        """Start OAuth: open browser with auth URL and print instructions."""
+    def start_oauth_flow(self, callback=None):
+        """Start OAuth; prefer local server flow (auto browser), fallback to manual URL."""
+        # Try local server flow first (recommended by Google)
         try:
-            url = self.authenticate_oauth()
-            if isinstance(url, str) and url:
-                try:
-                    import webbrowser
-                    webbrowser.open(url)
-                except Exception:
-                    pass
-                print("🔐 Opened browser for Google authorization. If it didn't open, use this URL:")
-                print(url)
-                print("After granting access, paste the authorization code back into the app.")
-                return url
-            else:
-                print("❌ Failed to start OAuth flow.")
+            if not os.path.exists(self.client_secrets_file):
+                if callback:
+                    callback("❌ client_secret.json not found! Place it next to the app.")
                 return None
+
+            flow = InstalledAppFlow.from_client_secrets_file(
+                self.client_secrets_file,
+                scopes=['https://www.googleapis.com/auth/youtube.readonly']
+            )
+            creds = flow.run_local_server(open_browser=True, prompt='consent')
+            self.credentials = creds
+            # Persist token
+            try:
+                with open(self.token_file, 'wb') as token:
+                    pickle.dump(self.credentials, token)
+            except Exception:
+                pass
+            # Build OAuth service
+            self.authenticated_youtube = build('youtube', 'v3', credentials=self.credentials)
+            self.youtube = self.authenticated_youtube
+            self.is_authenticated = True
+            if callback:
+                callback("✅ Logged in with Google")
+            return True
         except Exception as e:
-            print(f"❌ OAuth flow error: {e}")
+            # Fallback to manual (OOB-like) flow: provide URL and try to open browser
+            try:
+                url = self.authenticate_oauth(callback)
+                if isinstance(url, str) and url:
+                    opened = False
+                    try:
+                        import webbrowser, os
+                        opened = webbrowser.open(url, new=2)
+                        if not opened:
+                            opened = webbrowser.open_new_tab(url)
+                        if not opened and os.name == 'nt':
+                            os.startfile(url)
+                            opened = True
+                    except Exception:
+                        opened = False
+                    if callback:
+                        if opened:
+                            callback("🔐 Browser opened for Google authorization.")
+                        else:
+                            callback(f"🔗 Open this URL to authorize: {url}")
+                    return url
+            except Exception as inner:
+                pass
+            if callback:
+                callback(f"❌ OAuth flow error: {str(e)}")
             return None
 
     def logout_oauth(self):
