@@ -34,7 +34,17 @@ class YouTube4KCheckerApp:
         self.config_manager = ConfigManager()
         self.theme_config = ThemeConfig()
         self.ui_manager = UIManager(root)
-        self.thumbnail_manager = ThumbnailManager()
+        # Configure thumbnails from config
+        thumb_cfg = {}
+        try:
+            thumb_cfg = self.config_manager.get('thumbnails', {}) or {}
+        except Exception:
+            pass
+        self.thumbnail_manager = ThumbnailManager(
+            cache_dir=thumb_cfg.get('cache_dir', 'thumbnails'),
+            max_cache_size=thumb_cfg.get('max_cache_size', 100),
+            use_disk_cache=thumb_cfg.get('use_disk_cache', True)
+        )
         self.youtube_service = YouTubeAPIService()
         self.video_checker = Video4KChecker()
         # Apply API key from config (UI-managed)
@@ -155,6 +165,12 @@ class YouTube4KCheckerApp:
         self.ui_manager.register_element('max_entry', self.filter_widgets['max_entry'])
         self.ui_manager.register_element('max_slider', self.filter_widgets['max_slider'])
         self.ui_manager.register_element('filter_4k_var', self.filter_widgets['filter_4k_var'])
+        self.ui_manager.register_element('filter_copied_var', self.filter_widgets.get('filter_copied_var'))
+        # Also expose the checkbox widgets if present
+        if 'filter_4k_check' in self.filter_widgets:
+            self.ui_manager.register_element('filter_4k_check', self.filter_widgets['filter_4k_check'])
+        if 'filter_copied_check' in self.filter_widgets:
+            self.ui_manager.register_element('filter_copied_check', self.filter_widgets['filter_copied_check'])
 
         # Main buttons
         self.ui_manager.register_element('check_button', self.main_button_widgets['check_button'])
@@ -229,6 +245,9 @@ class YouTube4KCheckerApp:
         self.filter_widgets['max_entry'].bind('<KeyRelease>', self.event_handlers.on_entry_change)
         self.filter_widgets['max_slider'].configure(command=self.event_handlers.on_slider_change)
         self.filter_widgets['filter_4k_check'].configure(command=self.event_handlers.on_filter_toggle)
+        # Copied filter
+        if 'filter_copied_check' in self.filter_widgets:
+            self.filter_widgets['filter_copied_check'].configure(command=self.event_handlers.on_filter_toggle)
         
         # Main control events
         self.main_button_widgets['check_button'].configure(command=self.event_handlers.check_4k_quality)

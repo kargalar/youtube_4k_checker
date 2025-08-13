@@ -470,7 +470,7 @@ class WidgetFactory:
         max_slider.pack(side='left')
         max_slider.set(50)
         
-        # Toggle frame (only 4K filter now)
+    # Toggle frame (4K filter and Copied filter)
         toggle_frame = tk.Frame(controls_frame, bg=self.colors['bg_secondary'])
         toggle_frame.pack(side='left')
 
@@ -484,10 +484,22 @@ class WidgetFactory:
         )
         filter_4k_check.pack(side='left')
         
+        # Copied filter toggle
+        filter_copied_var = tk.BooleanVar(value=False)
+        filter_copied_check = ttk.Checkbutton(
+            toggle_frame,
+            text="Show only Copied",
+            variable=filter_copied_var,
+            style='Accent.TCheckbutton'
+        )
+        filter_copied_check.pack(side='left', padx=(12, 0))
+        
         return {
             'frame': filter_frame,
             'max_entry': max_entry,
             'max_slider': max_slider,
             'filter_4k_var': filter_4k_var,
-            'filter_4k_check': filter_4k_check
+            'filter_4k_check': filter_4k_check,
+            'filter_copied_var': filter_copied_var,
+            'filter_copied_check': filter_copied_check
         }

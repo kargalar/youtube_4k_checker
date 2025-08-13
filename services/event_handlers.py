@@ -519,33 +519,49 @@ class EventHandlers:
         """Handle filter toggles"""
         try:
             filter_4k_var = self.ui_manager.get_element('filter_4k_var')
+            filter_copied_var = self.ui_manager.get_element('filter_copied_var')
             
-            if filter_4k_var and filter_4k_var.get():
-                self.apply_4k_filter()
-            else:
+            # If neither filter is enabled, show all
+            if (not filter_4k_var or not filter_4k_var.get()) and (not filter_copied_var or not filter_copied_var.get()):
                 self.show_all_videos()
+                return
+
+            # Apply combined filters
+            self.apply_filters(show_4k=bool(filter_4k_var and filter_4k_var.get()),
+                               show_copied=bool(filter_copied_var and filter_copied_var.get()))
                 
         except Exception as e:
             print(f"Error in filter toggle: {e}")
     
-    def apply_4k_filter(self):
-        """Show only 4K videos"""
+    def apply_filters(self, show_4k=False, show_copied=False):
+        """Apply non-destructive filters for 4K and/or Copied."""
         try:
             tree = self.ui_manager.get_element('video_tree')
             if not tree:
                 return
 
-            # Iterate over all known items (including detached ones)
-            all_items = list(self.tree_manager.video_data.keys()) if self.tree_manager else list(tree.get_children())
+            # Collect copied ids once if needed
+            copied_ids = set()
+            if show_copied and self.tree_manager and self.tree_manager._get_config_manager():
+                copied_ids = set(self.tree_manager._get_config_manager().get('history.copied_video_ids', []) or [])
 
-            # Hide non-4K videos (Quality column now holds SD/HD/4K)
+            # Iterate over all known items
+            all_items = list(self.tree_manager.video_data.keys()) if self.tree_manager else list(tree.get_children())
+            visible_count = 0
             for item in all_items:
                 if not tree.exists(item):
                     continue
-                quality = tree.set(item, 'status')
-                if quality and '4K' in str(quality).upper():
+                ok = True
+                if show_4k:
+                    quality = tree.set(item, 'status')
+                    ok = ok and bool(quality and '4K' in str(quality).upper())
+                if show_copied:
+                    vid = self.tree_manager.video_data.get(item, {}).get('id') if self.tree_manager else None
+                    ok = ok and bool(vid and vid in copied_ids)
+                if ok:
                     try:
                         tree.reattach(item, '', 'end')
+                        visible_count += 1
                     except Exception:
                         pass
                 else:
@@ -553,11 +569,16 @@ class EventHandlers:
                         tree.detach(item)
                     except Exception:
                         pass
-            
-            self.ui_manager.update_status("🔍 Showing only 4K videos")
-            
+
+            # Status
+            if show_4k and show_copied:
+                self.ui_manager.update_status(f"🔍 Showing Copied 4K videos ({visible_count})")
+            elif show_4k:
+                self.ui_manager.update_status(f"🔍 Showing only 4K videos ({visible_count})")
+            elif show_copied:
+                self.ui_manager.update_status(f"🔍 Showing only Copied videos ({visible_count})")
         except Exception as e:
-            print(f"Error applying 4K filter: {e}")
+            print(f"Error applying filters: {e}")
     
     def show_all_videos(self):
         """Show all videos"""

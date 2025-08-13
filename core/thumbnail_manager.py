@@ -12,16 +12,18 @@ import time
 class ThumbnailManager:
     """Service for managing video thumbnails"""
     
-    def __init__(self, cache_dir="thumbnails", max_cache_size=100):
+    def __init__(self, cache_dir="thumbnails", max_cache_size=100, use_disk_cache=True):
         self.cache_dir = cache_dir
         self.max_cache_size = max_cache_size
+        self.use_disk_cache = use_disk_cache
         self.thumbnail_cache = {}
         self.cache_lock = threading.Lock()
-        self._ensure_cache_dir()
+        if self.use_disk_cache:
+            self._ensure_cache_dir()
     
     def _ensure_cache_dir(self):
         """Ensure thumbnail cache directory exists"""
-        if not os.path.exists(self.cache_dir):
+        if self.use_disk_cache and not os.path.exists(self.cache_dir):
             os.makedirs(self.cache_dir)
     
     def get_cache_path(self, video_id):
@@ -31,28 +33,36 @@ class ThumbnailManager:
     def download_thumbnail(self, video_id, thumbnail_url):
         """Download thumbnail image for video"""
         try:
+            if not self.use_disk_cache:
+                # In memory mode: nothing to persist, just indicate success
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
+                _ = requests.get(thumbnail_url, headers=headers, timeout=10)
+                return None
+
             cache_path = self.get_cache_path(video_id)
-            
+
             # Check if already cached
             if os.path.exists(cache_path):
                 return cache_path
-            
+
             # Download thumbnail
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
-            
+
             response = requests.get(thumbnail_url, headers=headers, timeout=10)
-            
+
             if response.status_code == 200:
                 # Save to cache
                 with open(cache_path, 'wb') as f:
                     f.write(response.content)
-                
+
                 return cache_path
-            
+
             return None
-            
+
         except Exception as e:
             print(f"Error downloading thumbnail for {video_id}: {e}")
             return None
@@ -69,11 +79,22 @@ class ThumbnailManager:
                     return self.thumbnail_cache[cache_key]
             
             # Download or get from disk cache
-            cache_path = self.download_thumbnail(video_id, thumbnail_url)
+            photo = None
+            if self.use_disk_cache:
+                cache_path = self.download_thumbnail(video_id, thumbnail_url)
+                if cache_path and os.path.exists(cache_path):
+                    image = Image.open(cache_path).convert('RGB')
+                else:
+                    image = None
+            else:
+                # Memory-only: fetch bytes and process directly
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
+                resp = requests.get(thumbnail_url, headers=headers, timeout=10)
+                image = Image.open(BytesIO(resp.content)).convert('RGB') if resp.status_code == 200 else None
             
-            if cache_path and os.path.exists(cache_path):
-                # Load and process image
-                image = Image.open(cache_path).convert('RGB')
+            if image is not None:
                 target_w, target_h = size
                 # Create a black canvas of target size
                 canvas = Image.new('RGB', (target_w, target_h), (0, 0, 0))
@@ -137,8 +158,8 @@ class ThumbnailManager:
             with self.cache_lock:
                 self.thumbnail_cache.clear()
             
-            # Clear disk cache
-            if os.path.exists(self.cache_dir):
+            # Clear disk cache if enabled
+            if self.use_disk_cache and os.path.exists(self.cache_dir):
                 for filename in os.listdir(self.cache_dir):
                     file_path = os.path.join(self.cache_dir, filename)
                     if os.path.isfile(file_path):
@@ -156,7 +177,7 @@ class ThumbnailManager:
         disk_count = 0
         disk_size = 0
         
-        if os.path.exists(self.cache_dir):
+        if self.use_disk_cache and os.path.exists(self.cache_dir):
             for filename in os.listdir(self.cache_dir):
                 file_path = os.path.join(self.cache_dir, filename)
                 if os.path.isfile(file_path):

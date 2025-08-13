@@ -30,7 +30,8 @@ class ConfigManager:
             'cache_dir': 'thumbnails',
             'max_cache_size': 100,
             'thumbnail_size': [50, 50],
-            'preload_enabled': True
+            'preload_enabled': True,
+            'use_disk_cache': True
         },
         
         # UI settings
