@@ -115,46 +115,43 @@ class YouTube4KCheckerApp:
         self.ui_manager.register_element('auth_status_label', self.auth_widgets['status_label'])
         self.ui_manager.register_element('login_button', self.auth_widgets['login_button'])
         self.ui_manager.register_element('logout_button', self.auth_widgets['logout_button'])
-        
+
         # Playlist widgets
         self.ui_manager.register_element('url_entry', self.playlist_widgets['url_entry'])
         self.ui_manager.register_element('paste_button', self.playlist_widgets['paste_button'])
-        self.ui_manager.register_element('load_button', self.playlist_widgets['load_button'])
         self.ui_manager.register_element('info_label', self.playlist_widgets['info_label'])
-        # Auto-check toggle
-        if 'auto_check_4k' in self.playlist_widgets:
-            self.ui_manager.register_element('auto_check_4k', self.playlist_widgets['auto_check_4k'])
-        if 'auto_check_4k_check' in self.playlist_widgets:
-            self.ui_manager.register_element('auto_check_4k_check', self.playlist_widgets['auto_check_4k_check'])
-        
+
         # Filter widgets
         self.ui_manager.register_element('max_entry', self.filter_widgets['max_entry'])
         self.ui_manager.register_element('max_slider', self.filter_widgets['max_slider'])
         self.ui_manager.register_element('all_videos_var', self.filter_widgets['all_videos_var'])
         self.ui_manager.register_element('filter_4k_var', self.filter_widgets['filter_4k_var'])
-        
+
         # Main buttons
         self.ui_manager.register_element('check_button', self.main_button_widgets['check_button'])
         self.ui_manager.register_element('stop_button', self.main_button_widgets['stop_button'])
         self.ui_manager.register_element('progress_frame', self.main_button_widgets['progress_frame'])
         self.ui_manager.register_element('progress_label', self.main_button_widgets['progress_label'])
         self.ui_manager.register_element('progress_bar', self.main_button_widgets['progress_bar'])
-        
+
         # Action buttons
         self.ui_manager.register_element('check_all_button', self.action_widgets['check_all_button'])
         self.ui_manager.register_element('uncheck_all_button', self.action_widgets['uncheck_all_button'])
         self.ui_manager.register_element('check_4k_button', self.action_widgets['check_4k_button'])
+        self.ui_manager.register_element('select_copied_button', self.action_widgets['select_copied_button'])
         self.ui_manager.register_element('copy_button', self.action_widgets['copy_button'])
         self.ui_manager.register_element('remove_list_button', self.action_widgets['remove_list_button'])
         self.ui_manager.register_element('remove_youtube_button', self.action_widgets['remove_youtube_button'])
-        
+
         # Status bar
         self.ui_manager.register_element('status_label', self.status_widgets['status_label'])
         self.ui_manager.register_element('count_label', self.status_widgets['count_label'])
-        
+
         # Tree and services
         self.ui_manager.register_element('video_tree', self.video_tree)
         self.ui_manager.register_element('theme', self.theme_config)
+        # Expose config manager for components that read/write persistent settings
+        self.ui_manager.register_element('config_manager', self.config_manager)
     
     def bind_events(self):
         """Bind UI events to handlers"""
@@ -169,7 +166,6 @@ class YouTube4KCheckerApp:
         # Playlist events
         self.playlist_widgets['url_entry'].bind('<KeyRelease>', self.event_handlers.on_url_change)
         self.playlist_widgets['paste_button'].configure(command=self.event_handlers.paste_url)
-        self.playlist_widgets['load_button'].configure(command=self.event_handlers.load_playlist)
         
         # Filter events
         self.filter_widgets['max_entry'].bind('<KeyRelease>', self.event_handlers.on_entry_change)
@@ -190,8 +186,18 @@ class YouTube4KCheckerApp:
         self.action_widgets['check_4k_button'].configure(
             command=lambda: self.tree_manager.check_4k_only(self.video_tree)
         )
+        self.action_widgets['select_copied_button'].configure(
+            command=lambda: self.tree_manager.select_previously_copied(self.video_tree)
+        )
         self.action_widgets['copy_button'].configure(
             command=lambda: self.video_operations.copy_checked_urls(self.video_tree)
+        )
+        # Selection-based remove actions
+        self.action_widgets['remove_list_button'].configure(
+            command=lambda: self.tree_manager.remove_selected_items(self.video_tree)
+        )
+        self.action_widgets['remove_youtube_button'].configure(
+            command=lambda: self.video_operations.remove_selected_from_youtube(self.video_tree)
         )
     
     def setup_authentication(self):

@@ -57,8 +57,8 @@ class TreeManager:
         tree_container = tk.Frame(tree_frame, bg=colors['bg_primary'])
         tree_container.pack(fill='both', expand=True)
 
-        # Configure tree with columns (no checkboxes, selection-based actions)
-        columns = ('title', 'channel', 'status', 'definition', 'published')
+        # Configure tree with columns (no date column; selection-based actions)
+        columns = ('title', 'channel', 'status')
         tree = ttk.Treeview(
             tree_container,
             columns=columns,
@@ -67,20 +67,16 @@ class TreeManager:
         )
 
         # Configure columns
-        tree.column('#0', width=60, minwidth=60, stretch=False)  # Thumbnail column
+        tree.column('#0', width=130, minwidth=100, stretch=False)  # Thumbnail column wider for bigger thumbs
         tree.column('title', width=380, minwidth=220, stretch=True)
         tree.column('channel', width=150, minwidth=100, stretch=False)
         tree.column('status', width=120, minwidth=100, stretch=False, anchor='center')
-        tree.column('definition', width=60, minwidth=60, stretch=False, anchor='center')
-        tree.column('published', width=100, minwidth=80, stretch=False, anchor='center')
 
         # Configure headings
         tree.heading('#0', text='📷', anchor='center')
         tree.heading('title', text='📺 Title', anchor='w')
         tree.heading('channel', text='📺 Channel', anchor='w')
-        tree.heading('status', text='🔍 4K Status', anchor='center')
-        tree.heading('definition', text='📺 Quality', anchor='center')
-        tree.heading('published', text='📅 Date', anchor='center')
+        tree.heading('status', text='📺 Quality', anchor='center')
 
         # Scrollbar
         scrollbar = ttk.Scrollbar(tree_container, orient='vertical', command=tree.yview)
@@ -95,6 +91,8 @@ class TreeManager:
         tree.bind('<Button-3>', self.show_context_menu)
         tree.bind('<Double-1>', self.on_double_click)
         tree.bind('<Delete>', self.on_delete_key)
+        tree.bind('<<TreeviewSelect>>', self.on_select_changed)
+        tree.bind('<Control-a>', self.on_ctrl_a)
 
         # Register with UI manager
         self.ui_manager.register_element('video_tree', tree)
@@ -105,22 +103,15 @@ class TreeManager:
     def add_video_to_tree(self, tree, video_data):
         """Add a video to the tree"""
         try:
-            # Format date
-            published_date = video_data.get('published_at', '')
-            if published_date:
-                try:
-                    from datetime import datetime
-                    date_obj = datetime.fromisoformat(published_date.replace('Z', '+00:00'))
-                    formatted_date = date_obj.strftime('%Y-%m-%d')
-                except:
-                    formatted_date = published_date[:10]  # Fallback
-            else:
-                formatted_date = ''
+            # Date removed from UI
 
             # Prepare title (prefix with [EN] if detected via API)
             raw_title = video_data.get('title', 'Unknown Title')
             title_prefix = '[EN] ' if video_data.get('is_english') else ''
             display_title_full = f"{title_prefix}{raw_title}".strip()
+            # Prefix indicator if previously copied
+            if self._is_previously_copied(video_data.get('id')):
+                display_title_full = f"📋 {display_title_full}"
             display_title = display_title_full[:50] + ('...' if len(display_title_full) > 50 else '')
 
             # Add to tree
@@ -131,9 +122,7 @@ class TreeManager:
                 values=(
                     display_title,
                     video_data.get('channel_title', 'Unknown Channel')[:25],
-                    '⏳ Pending',  # status
-                    video_data.get('definition', 'hd').upper(),
-                    formatted_date,
+                    self._format_quality_initial(video_data.get('definition', 'hd')),
                 ),
             )
             
@@ -173,7 +162,7 @@ class TreeManager:
                 def load_thumbnail():
                     try:
                         photo = self.thumbnail_manager.get_thumbnail_image(
-                            video_id, thumbnail_url, (45, 30)
+                            video_id, thumbnail_url, (120, 68)
                         )
                         
                         if photo:
@@ -195,12 +184,39 @@ class TreeManager:
                 
         except Exception as e:
             print(f"Error in thumbnail loading setup: {e}")
+
+    def on_select_changed(self, event):
+        """Update action buttons when selection changes"""
+        try:
+            tree = event.widget
+            if hasattr(self, 'video_operations') and self.video_operations:
+                # Prefer new unified updater if available
+                updater = getattr(self.video_operations, 'update_action_buttons_state', None)
+                if callable(updater):
+                    updater(tree)
+                else:
+                    self.video_operations.update_copy_button_state(tree)
+        except Exception as e:
+            print(f"Error handling selection change: {e}")
+
+    def on_ctrl_a(self, event):
+        """Ctrl+A to select all items"""
+        try:
+            tree = event.widget
+            items = tree.get_children()
+            tree.selection_set(items)
+            # Prevent text selection beep
+            return 'break'
+        except Exception as e:
+            print(f"Error handling Ctrl+A: {e}")
     
     def update_video_status(self, tree, item_id, status):
         """Update video 4K status in tree"""
         try:
             if tree.exists(item_id):
-                tree.set(item_id, 'status', status)
+                # Map 4K status strings to Quality label
+                mapped = self._map_status_to_quality(status)
+                tree.set(item_id, 'status', mapped)
                 
                 # Update stored data
                 if item_id in self.video_data:
@@ -208,6 +224,83 @@ class TreeManager:
                     
         except Exception as e:
             print(f"Error updating video status: {e}")
+
+    def _get_config_manager(self):
+        try:
+            return self.ui_manager.get_element('config_manager')
+        except Exception:
+            return None
+
+    def _is_previously_copied(self, video_id):
+        try:
+            if not video_id:
+                return False
+            cfg = self._get_config_manager()
+            if not cfg:
+                return False
+            copied = cfg.get('history.copied_video_ids', []) or []
+            return video_id in copied
+        except Exception:
+            return False
+
+    def set_copied_icon(self, tree, item, copied=True):
+        """Toggle the copied indicator on the title cell for a tree item."""
+        try:
+            title = tree.set(item, 'title')
+            has_icon = title.startswith('📋 ')
+            if copied and not has_icon:
+                tree.set(item, 'title', f"📋 {title}")
+            elif not copied and has_icon:
+                tree.set(item, 'title', title[2:].lstrip())
+        except Exception as e:
+            print(f"Error setting copied icon: {e}")
+
+    def select_previously_copied(self, tree):
+        """Select all items that were previously copied."""
+        try:
+            copied_ids = set(self._get_config_manager().get('history.copied_video_ids', []) or []) if self._get_config_manager() else set()
+            if not copied_ids:
+                return
+            to_select = []
+            for item in tree.get_children():
+                meta = self.video_data.get(item, {})
+                vid = meta.get('id')
+                if vid and vid in copied_ids:
+                    to_select.append(item)
+            if to_select:
+                tree.selection_set(to_select)
+        except Exception as e:
+            print(f"Error selecting previously copied: {e}")
+
+    def _format_quality_initial(self, definition):
+        """Return initial quality label based on definition (sd/hd)."""
+        try:
+            if str(definition).lower() == 'sd':
+                return 'SD'
+            return 'HD'
+        except Exception:
+            return 'HD'
+
+    def _map_status_to_quality(self, status):
+        """Normalize various status strings into SD/HD/4K quality labels."""
+        try:
+            s = str(status).lower()
+            if 'sd' in s:
+                return 'SD'
+            if '✅' in s or '4k' in s:
+                return '4K'
+            if 'pending' in s or '⏳' in s:
+                return '⏳ Pending'
+            if 'timeout' in s:
+                return '⚠️ Timeout'
+            if 'failed' in s:
+                return '⚠️ Failed'
+            # Default map for negatives
+            if 'no 4k' in s or '❌' in s:
+                return 'HD'
+            return status
+        except Exception:
+            return status
     
     def on_tree_click(self, event):
         """Handle tree click events"""

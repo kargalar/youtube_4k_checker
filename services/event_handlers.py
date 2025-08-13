@@ -535,10 +535,10 @@ class EventHandlers:
             if not tree:
                 return
             
-            # Hide non-4K videos
+            # Hide non-4K videos (Quality column now holds SD/HD/4K)
             for item in tree.get_children():
-                status = tree.set(item, 'status')
-                if '✅' in status or '4K Available' in status:
+                quality = tree.set(item, 'status')
+                if quality and '4K' in quality:
                     tree.reattach(item, '', 'end')
                 else:
                     tree.detach(item)

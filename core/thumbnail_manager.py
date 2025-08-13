@@ -57,8 +57,10 @@ class ThumbnailManager:
             print(f"Error downloading thumbnail for {video_id}: {e}")
             return None
     
-    def get_thumbnail_image(self, video_id, thumbnail_url, size=(50, 50)):
-        """Get processed thumbnail image for display"""
+    def get_thumbnail_image(self, video_id, thumbnail_url, size=(120, 68)):
+        """Get processed thumbnail image for display at 16:9 aspect ratio.
+        Size should be a 16:9 tuple, e.g., (160, 90), (120, 68), etc.
+        """
         try:
             with self.cache_lock:
                 # Check memory cache first
@@ -71,13 +73,21 @@ class ThumbnailManager:
             
             if cache_path and os.path.exists(cache_path):
                 # Load and process image
-                image = Image.open(cache_path)
-                
-                # Resize to fit
-                image.thumbnail(size, Image.Resampling.LANCZOS)
-                
+                image = Image.open(cache_path).convert('RGB')
+                target_w, target_h = size
+                # Create a black canvas of target size
+                canvas = Image.new('RGB', (target_w, target_h), (0, 0, 0))
+                # Compute scale to fit within 16:9 box while preserving aspect
+                scale = min(target_w / image.width, target_h / image.height)
+                new_w = max(1, int(image.width * scale))
+                new_h = max(1, int(image.height * scale))
+                resized = image.resize((new_w, new_h), Image.Resampling.LANCZOS)
+                # Paste centered
+                offset_x = (target_w - new_w) // 2
+                offset_y = (target_h - new_h) // 2
+                canvas.paste(resized, (offset_x, offset_y))
                 # Convert for Tkinter
-                photo = ImageTk.PhotoImage(image)
+                photo = ImageTk.PhotoImage(canvas)
                 
                 # Cache in memory
                 with self.cache_lock:

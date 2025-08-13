@@ -145,35 +145,14 @@ class WidgetFactory:
         )
         paste_button.pack(side='right', padx=(0, 5))
         
-        # Load button
-        load_button = ttk.Button(
-            url_frame,
-            text="🚀 Load Playlist",
-            style='Accent.TButton'
-        )
-        load_button.pack(side='right', padx=(0, 5))
-
-        # Options row
-        options_frame = tk.Frame(input_frame, bg=self.colors['bg_secondary'])
-        options_frame.pack(fill='x', pady=(2, 0))
-
-        auto_check_4k = tk.BooleanVar(value=True)
-        auto_check_4k_check = ttk.Checkbutton(
-            options_frame,
-            text="Auto check 4K on load",
-            variable=auto_check_4k,
-            style='Modern.TCheckbutton'
-        )
-        auto_check_4k_check.pack(side='left', padx=(5, 5))
+    # Note: Load button and Auto-check option removed per user request
         
         return {
             'frame': input_frame,
             'url_entry': url_entry,
             'paste_button': paste_button,
-            'load_button': load_button,
             'info_label': info_label,
-            'auto_check_4k': auto_check_4k,
-            'auto_check_4k_check': auto_check_4k_check
+            # auto_check_4k and load_button removed
         }
     
     def create_main_button_group(self, parent):
@@ -309,6 +288,14 @@ class WidgetFactory:
             style='Tool.TButton'
         )
         check_4k_button.pack(side='left', padx=(0, 15))
+
+        # Select previously copied
+        select_copied_button = ttk.Button(
+            selection_frame,
+            text="📎 Select Copied",
+            style='Tool.TButton'
+        )
+        select_copied_button.pack(side='left', padx=(0, 15))
         
         # Copy URLs button
         copy_button = ttk.Button(
@@ -346,6 +333,7 @@ class WidgetFactory:
             'check_all_button': check_all_button,
             'uncheck_all_button': uncheck_all_button,
             'check_4k_button': check_4k_button,
+            'select_copied_button': select_copied_button,
             'copy_button': copy_button,
             'remove_list_button': remove_list_button,
             'remove_youtube_button': remove_youtube_button

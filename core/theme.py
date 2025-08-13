@@ -68,7 +68,8 @@ class ThemeConfig:
             foreground=cls.COLORS['text_primary'],
             fieldbackground=cls.COLORS['bg_secondary'],
             borderwidth=0,
-            font=cls.FONTS['main']
+            font=cls.FONTS['main'],
+            rowheight=96
         )
         
         style.configure(
@@ -87,10 +88,43 @@ class ThemeConfig:
         
         style.map("Dark.Treeview.Heading",
                   background=[('active', cls.COLORS['bg_hover'])])
+
+        # Provide equivalent "Modern" styles used by widgets
+        style.configure(
+            "Modern.Treeview",
+            background=cls.COLORS['bg_secondary'],
+            foreground=cls.COLORS['text_primary'],
+            fieldbackground=cls.COLORS['bg_secondary'],
+            borderwidth=0,
+            font=cls.FONTS['main'],
+            rowheight=96
+        )
+        style.configure(
+            "Modern.Treeview.Heading",
+            background=cls.COLORS['bg_tertiary'],
+            foreground=cls.COLORS['text_primary'],
+            borderwidth=1,
+            relief='flat',
+            font=cls.FONTS['heading']
+        )
+        style.map("Modern.Treeview",
+                  background=[('selected', cls.COLORS['accent_blue'])],
+                  foreground=[('selected', cls.COLORS['text_primary'])])
+        style.map("Modern.Treeview.Heading",
+                  background=[('active', cls.COLORS['bg_hover'])])
         
         # Progress bar
         style.configure(
             "Dark.Horizontal.TProgressbar",
+            background=cls.COLORS['accent_green'],
+            troughcolor=cls.COLORS['bg_tertiary'],
+            borderwidth=0,
+            lightcolor=cls.COLORS['accent_green'],
+            darkcolor=cls.COLORS['accent_green']
+        )
+        # Alias for Modern progressbar
+        style.configure(
+            "Modern.Horizontal.TProgressbar",
             background=cls.COLORS['accent_green'],
             troughcolor=cls.COLORS['bg_tertiary'],
             borderwidth=0,

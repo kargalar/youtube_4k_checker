@@ -1,0 +1,43 @@
+{
+  "youtube": {
+    "api_key": "AIzaSyA3hWhKJmy2_0A7cfbB46va3XWsq-SeV2E",
+    "max_results": 50,
+    "timeout": 10
+  },
+  "checker": {
+    "max_workers": 6,
+    "timeout": 10,
+    "verify_ssl": false,
+    "retry_attempts": 2
+  },
+  "thumbnails": {
+    "cache_dir": "thumbnails",
+    "max_cache_size": 100,
+    "thumbnail_size": [
+      50,
+      50
+    ],
+    "preload_enabled": true
+  },
+  "ui": {
+    "theme": "dark",
+    "window_size": [
+      1000,
+      700
+    ],
+    "window_position": null,
+    "auto_check_4k": true,
+    "show_thumbnails": true
+  },
+  "advanced": {
+    "debug_mode": false,
+    "log_level": "INFO",
+    "auto_save_results": true,
+    "export_format": "json"
+  },
+  "history": {
+    "copied_video_ids": [
+      "nQsArxundEI"
+    ]
+  }
+}

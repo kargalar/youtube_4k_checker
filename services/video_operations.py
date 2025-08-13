@@ -54,32 +54,56 @@ class VideoOperations:
             )
     
     def copy_checked_urls(self, tree):
-        """Copy all checked video URLs to clipboard"""
+        """Copy selected video URLs directly to clipboard (no dialog)."""
         try:
-            checked_video_data = []
-            
-            # Collect selected videos instead of checked
-            for item in tree.selection():
-                # Merge tree visible fields with stored meta
-                meta = self._get_video_meta(item)
-                video_data = {
-                    'title': tree.set(item, 'title'),
-                    'url': meta.get('url'),
-                    'status': tree.set(item, 'status'),
-                    'id': meta.get('id'),
-                    'playlist_item_id': meta.get('playlist_item_id')
-                }
-                checked_video_data.append(video_data)
-            
-            if not checked_video_data:
+            selected = list(tree.selection())
+            if not selected:
                 self.ui_manager.show_message_dialog(
                     "No Videos Selected",
-                    "Please check at least one video to copy URLs.",
+                    "Please select at least one video to copy URLs.",
                     'warning'
                 )
                 return
-            
-            self.show_copy_options_dialog(checked_video_data, len(checked_video_data))
+
+            urls = []
+            for item in selected:
+                meta = self._get_video_meta(item)
+                url = meta.get('url')
+                if url:
+                    urls.append(url)
+
+            if not urls:
+                self.ui_manager.update_status("❌ No URLs found for selected items")
+                return
+
+            text = "\n".join(urls)
+            tree.clipboard_clear()
+            tree.clipboard_append(text)
+            self.ui_manager.update_status(f"📋 Copied {len(urls)} URL(s)")
+
+            # Persist copy history and set copied icon
+            try:
+                cfg = self.ui_manager.get_element('config_manager')
+                tree_manager = getattr(self, 'tree_manager', None)
+                if cfg and tree_manager:
+                    existing = set(cfg.get('history.copied_video_ids', []) or [])
+                    changed = False
+                    for item in selected:
+                        meta = tree_manager.video_data.get(item, {})
+                        vid = meta.get('id')
+                        if vid and vid not in existing:
+                            existing.add(vid)
+                            changed = True
+                        # Mark visually
+                        try:
+                            tree_manager.set_copied_icon(tree, item, copied=True)
+                        except Exception:
+                            pass
+                    if changed:
+                        cfg.set('history', {**(cfg.get('history', {}) or {}), 'copied_video_ids': list(existing)})
+                        cfg.save_config()
+            except Exception as e:
+                print(f"Error updating copy history: {e}")
             
         except Exception as e:
             print(f"Error copying checked URLs: {e}")
@@ -484,3 +508,23 @@ class VideoOperations:
             self.remove_from_youtube_playlist(videos, dialog=tk.Toplevel(self.ui_manager.root))
         except Exception as e:
             print(f"Error starting remove selected from YouTube: {e}")
+
+    def update_action_buttons_state(self, tree):
+        """Enable/disable action buttons based on current selection."""
+        try:
+            has_selection = len(tree.selection()) > 0
+            copy_button = self.ui_manager.get_element('copy_button')
+            remove_list_button = self.ui_manager.get_element('remove_list_button')
+            remove_youtube_button = self.ui_manager.get_element('remove_youtube_button')
+
+            def update():
+                if copy_button:
+                    copy_button.config(state='normal' if has_selection else 'disabled')
+                if remove_list_button:
+                    remove_list_button.config(state='normal' if has_selection else 'disabled')
+                if remove_youtube_button:
+                    remove_youtube_button.config(state='normal' if has_selection else 'disabled')
+
+            self.ui_manager.safe_update(update)
+        except Exception as e:
+            print(f"Error updating action buttons: {e}")
