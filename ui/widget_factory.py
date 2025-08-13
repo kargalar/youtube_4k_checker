@@ -41,14 +41,40 @@ class WidgetFactory:
         )
         title_label.pack(side='left')
         
-        # Status frame
+        # API Key input
+        api_frame = tk.Frame(auth_frame, bg=self.colors['bg_secondary'])
+        api_frame.pack(fill='x', pady=(2, 0))
+
+        api_label = tk.Label(
+            api_frame,
+            text="YouTube API Key:",
+            bg=self.colors['bg_secondary'],
+            fg=self.colors['text_primary'],
+            font=('Segoe UI', 9)
+        )
+        api_label.pack(side='left', padx=(25, 8))
+
+        api_key_entry = ttk.Entry(
+            api_frame,
+            font=('Segoe UI', 10),
+            style='Modern.TEntry'
+        )
+        api_key_entry.pack(side='left', fill='x', expand=True, padx=(0, 8))
+
+        save_api_key_button = ttk.Button(
+            api_frame,
+            text="Save",
+            style='Blue.TButton'
+        )
+        save_api_key_button.pack(side='left')
+
+        # Info and status
         status_frame = tk.Frame(auth_frame, bg=self.colors['bg_secondary'])
-        status_frame.pack(fill='x', pady=2)
-        
-        # Status label
+        status_frame.pack(fill='x', pady=(6, 2))
+
         status_label = tk.Label(
             status_frame,
-            text="Not authenticated",
+            text="API key required. Google login is only needed to remove videos from playlist.",
             bg=self.colors['bg_secondary'],
             fg=self.colors['accent_orange'],
             font=('Segoe UI', 9)
@@ -78,6 +104,8 @@ class WidgetFactory:
         return {
             'frame': auth_frame,
             'status_label': status_label,
+            'api_key_entry': api_key_entry,
+            'save_api_key_button': save_api_key_button,
             'login_button': login_button,
             'logout_button': logout_button
         }
@@ -191,7 +219,7 @@ class WidgetFactory:
         check_button = ttk.Button(
             controls_frame,
             text="🔍 Check 4K Quality",
-            style='Success.TButton'
+            style='Blue.TButton'
         )
         check_button.pack(side='left', padx=(0, 10))
         

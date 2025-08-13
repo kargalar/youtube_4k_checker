@@ -37,6 +37,11 @@ class YouTube4KCheckerApp:
         self.thumbnail_manager = ThumbnailManager()
         self.youtube_service = YouTubeAPIService()
         self.video_checker = Video4KChecker()
+        # Apply API key from config (UI-managed)
+        try:
+            self.youtube_service.api_key = self.config_manager.get('youtube.api_key', '')
+        except Exception:
+            pass
         
         # Initialize UI services
         self.widget_factory = WidgetFactory(self.theme_config)
@@ -136,6 +141,8 @@ class YouTube4KCheckerApp:
         """Register UI elements with UI manager for controlled access"""
         # Auth widgets
         self.ui_manager.register_element('auth_status_label', self.auth_widgets['status_label'])
+        self.ui_manager.register_element('api_key_entry', self.auth_widgets['api_key_entry'])
+        self.ui_manager.register_element('save_api_key_button', self.auth_widgets['save_api_key_button'])
         self.ui_manager.register_element('login_button', self.auth_widgets['login_button'])
         self.ui_manager.register_element('logout_button', self.auth_widgets['logout_button'])
 
@@ -174,10 +181,39 @@ class YouTube4KCheckerApp:
         self.ui_manager.register_element('theme', self.theme_config)
         # Expose config manager for components that read/write persistent settings
         self.ui_manager.register_element('config_manager', self.config_manager)
+        # Expose youtube service for checking OAuth vs API key where needed
+        self.ui_manager.register_element('youtube_service', self.youtube_service)
     
     def bind_events(self):
         """Bind UI events to handlers"""
         # Auth events
+        # Prefill API key
+        try:
+            key = self.config_manager.get('youtube.api_key', '')
+            if key:
+                self.auth_widgets['api_key_entry'].delete(0, tk.END)
+                self.auth_widgets['api_key_entry'].insert(0, key)
+        except Exception:
+            pass
+
+        def _save_api_key():
+            try:
+                key = self.auth_widgets['api_key_entry'].get().strip()
+                self.config_manager.set('youtube.api_key', key)
+                self.config_manager.save_config()
+                # Re-init API with new key
+                self.youtube_service.api_key = key
+                if self.youtube_service.setup_youtube_api():
+                    self.playlist_service.youtube_service = self.youtube_service.youtube
+                    self.ui_manager.update_status("✅ API key saved and initialized")
+                else:
+                    self.ui_manager.update_status("⚠️ API key saved, but initialization failed")
+            except Exception as e:
+                print(e)
+                self.ui_manager.update_status("❌ Failed to save API key")
+
+        self.auth_widgets['save_api_key_button'].configure(command=_save_api_key)
+
         self.auth_widgets['login_button'].configure(
             command=self.youtube_service.start_oauth_flow
         )
@@ -225,13 +261,17 @@ class YouTube4KCheckerApp:
     def setup_authentication(self):
         """Setup YouTube authentication with better error handling"""
         try:
-            # Setup API key
-            api_key = os.getenv('YOUTUBE_API_KEY', '')
-            if api_key:
-                self.config_manager.set('youtube.api_key', api_key)
-                print(f"✅ API key loaded: {api_key[:10]}...")
+            # Setup API key from config (required)
+            api_key = self.config_manager.get('youtube.api_key', '')
+            self.youtube_service.api_key = api_key or ''
+            if not api_key:
+                self.ui_manager.update_status("⚠️ Enter your YouTube API key to enable loading videos.")
             else:
-                print("⚠️ No YOUTUBE_API_KEY found in environment")
+                if self.youtube_service.setup_youtube_api():
+                    try:
+                        self.playlist_service.youtube_service = self.youtube_service.youtube
+                    except Exception:
+                        pass
             
             # Setup OAuth credentials
             self.youtube_service.client_secrets_file = os.getenv(
@@ -246,34 +286,10 @@ class YouTube4KCheckerApp:
             print(f"🔐 Client secrets file: {self.youtube_service.client_secrets_file}")
             print(f"🎟️ Token file: {self.youtube_service.token_file}")
             
-            # Initialize API with retry
-            api_ready = False
-            max_retries = 3
-            
-            for attempt in range(max_retries):
-                try:
-                    if self.youtube_service.setup_youtube_api():
-                        api_ready = True
-                        # Wire the playlist service to use the API-key YouTube client
-                        try:
-                            self.playlist_service.youtube_service = self.youtube_service.youtube
-                        except Exception:
-                            pass
-                        break
-                    else:
-                        print(f"⚠️ API setup attempt {attempt + 1} returned False")
-                        
-                except Exception as e:
-                    print(f"❌ API setup attempt {attempt + 1} failed: {e}")
-                    
-                if attempt < max_retries - 1:
-                    print(f"🔄 Retrying API setup in 2 seconds...")
-                    import time
-                    time.sleep(2)
-            
+            # API ready is based on presence of key and setup attempt above
+            api_ready = bool(api_key and self.youtube_service.youtube)
             if not api_ready:
-                self.ui_manager.update_status("⚠️ YouTube API setup failed - some features may not work")
-                print("⚠️ Continuing without full API access")
+                print("⚠️ API not initialized yet. Waiting for API key from UI.")
             
             # Check existing authentication
             try:
@@ -281,7 +297,7 @@ class YouTube4KCheckerApp:
             except Exception as e:
                 print(f"⚠️ Authentication check warning: {e}")
             
-            # Update auth status
+            # Update auth status (OAuth is optional and only needed for playlist removal)
             try:
                 self.update_auth_status()
             except Exception as e:

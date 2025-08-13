@@ -134,5 +134,42 @@ class ThemeConfig:
         
         # Frame styles
         style.configure("Dark.TFrame", background=cls.COLORS['bg_primary'])
+
+        # --- Button styles ---
+        # Base button tweaks
+        style.configure(
+            'TButton',
+            font=cls.FONTS['main'],
+            padding=(12, 6),
+            borderwidth=0
+        )
+        style.map(
+            'TButton',
+            relief=[('pressed', 'flat'), ('!pressed', 'flat')]
+        )
+
+        def _btn(style_name, bg, fg='white', active_bg=None):
+            abg = active_bg or bg
+            style.configure(style_name, background=bg, foreground=fg, focusthickness=0, borderwidth=0)
+            style.map(
+                style_name,
+                background=[('active', abg), ('pressed', abg)],
+                foreground=[('disabled', '#666666')]
+            )
+
+        # Primary blue for Check 4K
+        _btn('Blue.TButton', cls.COLORS['accent_blue'])
+        # Danger red for Stop and Remove from YouTube
+        _btn('Danger.TButton', cls.COLORS['accent_red'])
+        # Warning yellow for Remove from List
+        _btn('Warning.TButton', cls.COLORS['accent_yellow'], fg='black')
+        # Success green (if needed elsewhere)
+        _btn('Success.TButton', cls.COLORS['accent_green'])
+        # Info cyan
+        _btn('Info.TButton', cls.COLORS['accent_cyan'])
+        # Secondary neutral
+        _btn('Secondary.TButton', cls.COLORS['bg_tertiary'])
+        # Tool subtle button
+        _btn('Tool.TButton', cls.COLORS['bg_tertiary'])
         
         return style
