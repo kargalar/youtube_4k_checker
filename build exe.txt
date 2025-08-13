@@ -1,6 +1,2 @@
-C:/KARGALAR/Projeler/Python/youtube_4k_checker/.venv/Scripts/python.exe -m PyInstaller old_youtube_4k_checker.spec
+python -m PyInstaller --onefile --windowed main_app.py
 
-
-pyinstaller --onefile --windowed old_youtube_4k_gui.py
-
-pyinstaller --onefile --windowed main_app.py

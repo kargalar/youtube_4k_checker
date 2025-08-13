@@ -92,19 +92,42 @@ class YouTube4KCheckerApp:
         # Main container
         main_frame = tk.Frame(self.root, bg=self.theme_config.COLORS['bg_primary'])
         main_frame.pack(fill='both', expand=True)
-        
-        # Create widgets using factory
-        self.auth_widgets = self.widget_factory.create_auth_widget(main_frame)
-        self.playlist_widgets = self.widget_factory.create_playlist_input_widget(main_frame)
-        self.filter_widgets = self.widget_factory.create_filter_controls(main_frame)
-        self.main_button_widgets = self.widget_factory.create_main_button_group(main_frame)
-        self.action_widgets = self.widget_factory.create_action_button_group(main_frame)
-        
-        # Create video tree
-        self.video_tree = self.tree_manager.create_video_tree(main_frame)
-        
-        # Create status bar
-        self.status_widgets = self.widget_factory.create_status_bar(main_frame)
+
+        # Paned layout: left controls, right video list
+        paned = tk.PanedWindow(
+            main_frame,
+            orient='horizontal',
+            sashwidth=6,
+            bg=self.theme_config.COLORS['bg_primary'],
+            bd=0,
+            relief='flat'
+        )
+        paned.pack(fill='both', expand=True)
+
+        left_pane = tk.Frame(paned, bg=self.theme_config.COLORS['bg_primary'], width=380)
+        right_pane = tk.Frame(paned, bg=self.theme_config.COLORS['bg_primary'])
+        paned.add(left_pane, minsize=320)
+        paned.add(right_pane)
+
+        # Create widgets in left pane
+        self.auth_widgets = self.widget_factory.create_auth_widget(left_pane)
+        self.playlist_widgets = self.widget_factory.create_playlist_input_widget(left_pane)
+        self.filter_widgets = self.widget_factory.create_filter_controls(left_pane)
+        self.main_button_widgets = self.widget_factory.create_main_button_group(left_pane)
+        self.action_widgets = self.widget_factory.create_action_button_group(left_pane)
+
+        # Create video tree in right pane
+        self.video_tree = self.tree_manager.create_video_tree(right_pane)
+
+        # Create status bar in left pane (under controls)
+        self.status_widgets = self.widget_factory.create_status_bar(left_pane)
+
+        # Optional: set initial sash position
+        try:
+            self.root.update_idletasks()
+            paned.sash_place(0, 380, 1)
+        except Exception:
+            pass
         
         # Register UI elements with manager
         self.register_ui_elements()
@@ -124,7 +147,6 @@ class YouTube4KCheckerApp:
         # Filter widgets
         self.ui_manager.register_element('max_entry', self.filter_widgets['max_entry'])
         self.ui_manager.register_element('max_slider', self.filter_widgets['max_slider'])
-        self.ui_manager.register_element('all_videos_var', self.filter_widgets['all_videos_var'])
         self.ui_manager.register_element('filter_4k_var', self.filter_widgets['filter_4k_var'])
 
         # Main buttons

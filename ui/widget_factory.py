@@ -442,20 +442,10 @@ class WidgetFactory:
         max_slider.pack(side='left')
         max_slider.set(50)
         
-        # Toggle frame
+        # Toggle frame (only 4K filter now)
         toggle_frame = tk.Frame(controls_frame, bg=self.colors['bg_secondary'])
         toggle_frame.pack(side='left')
-        
-        # All videos toggle
-        all_videos_var = tk.BooleanVar(value=True)
-        all_videos_check = ttk.Checkbutton(
-            toggle_frame,
-            text="Show all videos",
-            variable=all_videos_var,
-            style='Modern.TCheckbutton'
-        )
-        all_videos_check.pack(side='left', padx=(0, 10))
-        
+
         # 4K filter toggle
         filter_4k_var = tk.BooleanVar(value=False)
         filter_4k_check = ttk.Checkbutton(
@@ -470,8 +460,6 @@ class WidgetFactory:
             'frame': filter_frame,
             'max_entry': max_entry,
             'max_slider': max_slider,
-            'all_videos_var': all_videos_var,
-            'all_videos_check': all_videos_check,
             'filter_4k_var': filter_4k_var,
             'filter_4k_check': filter_4k_check
         }
