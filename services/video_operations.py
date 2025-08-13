@@ -58,20 +58,18 @@ class VideoOperations:
         try:
             checked_video_data = []
             
-            # Collect checked videos
-            for item in tree.get_children():
-                checkbox_value = tree.set(item, 'checkbox')
-                if checkbox_value == '☑':
-                    # Merge tree visible fields with stored meta
-                    meta = self._get_video_meta(item)
-                    video_data = {
-                        'title': tree.set(item, 'title'),
-                        'url': meta.get('url'),
-                        'status': tree.set(item, 'status'),
-                        'id': meta.get('id'),
-                        'playlist_item_id': meta.get('playlist_item_id')
-                    }
-                    checked_video_data.append(video_data)
+            # Collect selected videos instead of checked
+            for item in tree.selection():
+                # Merge tree visible fields with stored meta
+                meta = self._get_video_meta(item)
+                video_data = {
+                    'title': tree.set(item, 'title'),
+                    'url': meta.get('url'),
+                    'status': tree.set(item, 'status'),
+                    'id': meta.get('id'),
+                    'playlist_item_id': meta.get('playlist_item_id')
+                }
+                checked_video_data.append(video_data)
             
             if not checked_video_data:
                 self.ui_manager.show_message_dialog(
@@ -336,12 +334,7 @@ class VideoOperations:
                     # Remove successful removals from tree
                     tree = self.ui_manager.get_element('video_tree')
                     if tree:
-                        items_to_remove = []
-                        for item in tree.get_children():
-                            checkbox_value = tree.set(item, 'checkbox')
-                            if checkbox_value == '☑':
-                                items_to_remove.append(item)
-                        
+                        items_to_remove = list(tree.selection())
                         for item in items_to_remove:
                             tree.delete(item)
                         
@@ -444,12 +437,8 @@ class VideoOperations:
             if not copy_button:
                 return
             
-            # Check if any videos are checked
-            has_checked = False
-            for item in tree.get_children():
-                if tree.set(item, 'checkbox') == '☑':
-                    has_checked = True
-                    break
+            # Enable if any selected
+            has_checked = len(tree.selection()) > 0
             
             def update():
                 copy_button.config(state='normal' if has_checked else 'disabled')
@@ -473,3 +462,25 @@ class VideoOperations:
         except Exception:
             pass
         return {}
+
+    def remove_selected_from_youtube(self, tree):
+        """Remove selected items from YouTube playlist via PlaylistService UI flow."""
+        try:
+            # Build video_data list from current selection
+            selected = list(tree.selection())
+            if not selected:
+                return
+            videos = []
+            for item in selected:
+                meta = self._get_video_meta(item)
+                videos.append({
+                    'title': tree.set(item, 'title'),
+                    'url': meta.get('url'),
+                    'status': tree.set(item, 'status'),
+                    'id': meta.get('id'),
+                    'playlist_item_id': meta.get('playlist_item_id')
+                })
+            # Reuse existing confirmation + async removal flow
+            self.remove_from_youtube_playlist(videos, dialog=tk.Toplevel(self.ui_manager.root))
+        except Exception as e:
+            print(f"Error starting remove selected from YouTube: {e}")

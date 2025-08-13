@@ -26,81 +26,80 @@ class TreeManager:
                 'bg_secondary': '#242424',
                 'text_primary': '#f5f5f5'
             }
-        
+
         # Tree frame
         tree_frame = tk.Frame(parent, bg=colors['bg_primary'])
         tree_frame.pack(fill='both', expand=True, padx=10, pady=5)
-        
+
         # Header
         header_frame = tk.Frame(tree_frame, bg=colors['bg_secondary'])
         header_frame.pack(fill='x', pady=(0, 5))
-        
+
         icon_label = tk.Label(
             header_frame,
-            text="📺",
+            text='📺',
             bg=colors['bg_secondary'],
             fg=colors['text_primary'],
-            font=('Segoe UI', 14)
+            font=('Segoe UI', 14),
         )
         icon_label.pack(side='left', padx=(5, 8))
-        
+
         title_label = tk.Label(
             header_frame,
-            text="Video List",
+            text='Video List',
             bg=colors['bg_secondary'],
             fg=colors['text_primary'],
-            font=('Segoe UI', 11, 'bold')
+            font=('Segoe UI', 11, 'bold'),
         )
         title_label.pack(side='left')
-        
+
         # Tree container
         tree_container = tk.Frame(tree_frame, bg=colors['bg_primary'])
         tree_container.pack(fill='both', expand=True)
-        
-        # Configure tree with columns
-        columns = ('checkbox', 'title', 'channel', 'status', 'definition', 'published')
+
+        # Configure tree with columns (no checkboxes, selection-based actions)
+        columns = ('title', 'channel', 'status', 'definition', 'published')
         tree = ttk.Treeview(
             tree_container,
             columns=columns,
             show='tree headings',
-            style='Modern.Treeview'
+            style='Modern.Treeview',
         )
-        
+
         # Configure columns
         tree.column('#0', width=60, minwidth=60, stretch=False)  # Thumbnail column
-        tree.column('checkbox', width=30, minwidth=30, stretch=False, anchor='center')
-        tree.column('title', width=350, minwidth=200, stretch=True)
+        tree.column('title', width=380, minwidth=220, stretch=True)
         tree.column('channel', width=150, minwidth=100, stretch=False)
         tree.column('status', width=120, minwidth=100, stretch=False, anchor='center')
         tree.column('definition', width=60, minwidth=60, stretch=False, anchor='center')
         tree.column('published', width=100, minwidth=80, stretch=False, anchor='center')
-        
+
         # Configure headings
         tree.heading('#0', text='📷', anchor='center')
-        tree.heading('checkbox', text='☐', anchor='center')
         tree.heading('title', text='📺 Title', anchor='w')
         tree.heading('channel', text='📺 Channel', anchor='w')
         tree.heading('status', text='🔍 4K Status', anchor='center')
         tree.heading('definition', text='📺 Quality', anchor='center')
         tree.heading('published', text='📅 Date', anchor='center')
-        
+
         # Scrollbar
         scrollbar = ttk.Scrollbar(tree_container, orient='vertical', command=tree.yview)
         tree.configure(yscrollcommand=scrollbar.set)
-        
+
         # Pack tree and scrollbar
         tree.pack(side='left', fill='both', expand=True)
         scrollbar.pack(side='right', fill='y')
-        
+
         # Bind events
         tree.bind('<Button-1>', self.on_tree_click)
         tree.bind('<Button-3>', self.show_context_menu)
         tree.bind('<Double-1>', self.on_double_click)
-        
+        tree.bind('<Delete>', self.on_delete_key)
+
         # Register with UI manager
         self.ui_manager.register_element('video_tree', tree)
         self.ui_manager.register_element('tree_scrollbar', scrollbar)
-        
+
         return tree
     
     def add_video_to_tree(self, tree, video_data):
@@ -130,7 +129,6 @@ class TreeManager:
                 'end',
                 image='',  # Thumbnail will be loaded later
                 values=(
-                    '☐',  # checkbox
                     display_title,
                     video_data.get('channel_title', 'Unknown Channel')[:25],
                     '⏳ Pending',  # status
@@ -211,40 +209,14 @@ class TreeManager:
         except Exception as e:
             print(f"Error updating video status: {e}")
     
-    def toggle_checkbox(self, tree, item):
-        """Toggle checkbox for tree item"""
-        try:
-            current_value = tree.set(item, 'checkbox')
-            new_value = '☑' if current_value == '☐' else '☐'
-            tree.set(item, 'checkbox', new_value)
-            
-            # Update stored data
-            if item in self.video_data:
-                self.video_data[item]['checked'] = (new_value == '☑')
-            
-            return new_value == '☑'
-            
-        except Exception as e:
-            print(f"Error toggling checkbox: {e}")
-            return False
-    
     def on_tree_click(self, event):
         """Handle tree click events"""
         try:
             tree = event.widget
-            region = tree.identify_region(event.x, event.y)
-            
-            if region == "cell":
-                column = tree.identify_column(event.x, event.y)
-                item = tree.identify_row(event.y)
-                
-                # Handle checkbox column clicks
-                if column == '#2' and item:  # Checkbox column
-                    self.toggle_checkbox(tree, item)
-                    
-                    # Update UI state
-                    if hasattr(self, 'video_operations'):
-                        self.video_operations.update_copy_button_state(tree)
+            # Left-click: no special handling needed now; keep for future hooks
+            _ = tree.identify_region(event.x, event.y)
+            if hasattr(self, 'video_operations'):
+                self.video_operations.update_copy_button_state(tree)
                         
         except Exception as e:
             print(f"Error in tree click handler: {e}")
@@ -272,7 +244,10 @@ class TreeManager:
             item = tree.identify_row(event.y)
             
             if item:
-                tree.selection_set(item)
+                # Preserve existing selection; if nothing selected, select the item under cursor
+                if not tree.selection() or item in ('', None):
+                    if item:
+                        tree.selection_set(item)
                 
                 # Get theme colors (fallback to defaults)
                 if self.theme_config:
@@ -297,21 +272,25 @@ class TreeManager:
                 
                 context_menu.add_command(
                     label="🌐 Open in Browser",
-                    command=lambda: self.on_double_click(event)
+                    command=lambda: self.open_selected_in_browser(tree)
                 )
                 
                 context_menu.add_separator()
                 
                 context_menu.add_command(
-                    label="📋 Copy URL",
-                    command=lambda: self.copy_item_url(tree, item)
+                    label="📋 Copy URL(s)",
+                    command=lambda: self.copy_selected_urls(tree)
                 )
                 
                 context_menu.add_separator()
                 
                 context_menu.add_command(
                     label="🗑️ Remove from List",
-                    command=lambda: self.remove_tree_item(tree, item)
+                    command=lambda: self.remove_selected_items(tree)
+                )
+                context_menu.add_command(
+                    label="❌ Remove from YouTube Playlist",
+                    command=lambda: self.remove_selected_from_youtube(tree)
                 )
                 
                 # Show menu
@@ -331,6 +310,23 @@ class TreeManager:
                 
         except Exception as e:
             print(f"Error copying item URL: {e}")
+
+    def copy_selected_urls(self, tree):
+        """Copy all selected items' URLs to clipboard (each on new line)"""
+        try:
+            selection = tree.selection()
+            urls = []
+            for item in selection:
+                url = self.video_data.get(item, {}).get('url')
+                if url:
+                    urls.append(url)
+            if urls:
+                text = '\n'.join(urls)
+                tree.clipboard_clear()
+                tree.clipboard_append(text)
+                self.ui_manager.update_status(f"📋 Copied {len(urls)} URL(s)")
+        except Exception as e:
+            print(f"Error copying selected URLs: {e}")
     
     def remove_tree_item(self, tree, item):
         """Remove item from tree"""
@@ -357,6 +353,61 @@ class TreeManager:
                 
         except Exception as e:
             print(f"Error removing tree item: {e}")
+
+    def remove_selected_items(self, tree):
+        """Remove all selected items from the list (no confirmation)."""
+        try:
+            selection = list(tree.selection())
+            if not selection:
+                return
+            for item in selection:
+                # Clean stored indices
+                if item in self.video_data:
+                    vid = self.video_data[item].get('id')
+                    if vid and vid in self.video_id_index:
+                        del self.video_id_index[vid]
+                    del self.video_data[item]
+                # Remove from tree
+                if tree.exists(item):
+                    tree.delete(item)
+            self.ui_manager.update_status(f"🗑️ Removed {len(selection)} item(s) from list")
+        except Exception as e:
+            print(f"Error removing selected items: {e}")
+
+    def on_delete_key(self, event):
+        """Handle Delete key to remove selected items."""
+        try:
+            tree = event.widget
+            self.remove_selected_items(tree)
+        except Exception as e:
+            print(f"Error handling Delete key: {e}")
+
+    def open_selected_in_browser(self, tree):
+        """Open all selected videos in browser (or focused one if none)."""
+        try:
+            selection = tree.selection()
+            if not selection:
+                focused = tree.focus()
+                selection = [focused] if focused else []
+            count = 0
+            for item in selection:
+                url = self.video_data.get(item, {}).get('url')
+                if url:
+                    import webbrowser
+                    webbrowser.open(url)
+                    count += 1
+            if count:
+                self.ui_manager.update_status(f"🌐 Opened {count} video(s) in browser")
+        except Exception as e:
+            print(f"Error opening selected in browser: {e}")
+
+    def remove_selected_from_youtube(self, tree):
+        """Trigger removal of selected items from YouTube playlist via VideoOperations."""
+        try:
+            if hasattr(self, 'video_operations') and self.video_operations:
+                self.video_operations.remove_selected_from_youtube(tree)
+        except Exception as e:
+            print(f"Error removing selected from YouTube: {e}")
     
     def clear_tree(self, tree):
         """Clear all items from tree"""
@@ -384,58 +435,42 @@ class TreeManager:
             return None
     
     def get_checked_videos(self, tree):
-        """Get all checked videos"""
+        """Compatibility: return selected videos instead of 'checked'."""
         try:
-            checked = []
-            
-            for item in tree.get_children():
-                if tree.set(item, 'checkbox') == '☑':
-                    video_data = self.video_data.get(item, {})
-                    if video_data:
-                        checked.append(video_data)
-            
-            return checked
-            
+            result = []
+            selection = tree.selection()
+            for item in selection:
+                video_data = self.video_data.get(item, {})
+                if video_data:
+                    result.append(video_data)
+            return result
         except Exception as e:
-            print(f"Error getting checked videos: {e}")
+            print(f"Error getting selected videos: {e}")
             return []
     
     def check_all_videos(self, tree):
-        """Check all videos in tree"""
+        """Select all videos in tree"""
         try:
-            for item in tree.get_children():
-                tree.set(item, 'checkbox', '☑')
-                if item in self.video_data:
-                    self.video_data[item]['checked'] = True
-                    
+            items = tree.get_children()
+            tree.selection_set(items)
         except Exception as e:
-            print(f"Error checking all videos: {e}")
+            print(f"Error selecting all videos: {e}")
     
     def uncheck_all_videos(self, tree):
-        """Uncheck all videos in tree"""
+        """Clear selection for all videos in tree"""
         try:
-            for item in tree.get_children():
-                tree.set(item, 'checkbox', '☐')
-                if item in self.video_data:
-                    self.video_data[item]['checked'] = False
-                    
+            tree.selection_remove(tree.selection())
         except Exception as e:
-            print(f"Error unchecking all videos: {e}")
+            print(f"Error clearing selection: {e}")
     
     def check_4k_only(self, tree):
-        """Check only videos with 4K availability"""
+        """Select only videos with 4K availability"""
         try:
+            select_items = []
             for item in tree.get_children():
                 status = tree.set(item, 'status')
-                
-                if '✅' in status or '4K Available' in status:
-                    tree.set(item, 'checkbox', '☑')
-                    if item in self.video_data:
-                        self.video_data[item]['checked'] = True
-                else:
-                    tree.set(item, 'checkbox', '☐')
-                    if item in self.video_data:
-                        self.video_data[item]['checked'] = False
-                        
+                if '✅' in status or '4K' in status:
+                    select_items.append(item)
+            tree.selection_set(select_items)
         except Exception as e:
-            print(f"Error checking 4K videos: {e}")
+            print(f"Error selecting 4K videos: {e}")
