@@ -534,14 +534,25 @@ class EventHandlers:
             tree = self.ui_manager.get_element('video_tree')
             if not tree:
                 return
-            
+
+            # Iterate over all known items (including detached ones)
+            all_items = list(self.tree_manager.video_data.keys()) if self.tree_manager else list(tree.get_children())
+
             # Hide non-4K videos (Quality column now holds SD/HD/4K)
-            for item in tree.get_children():
+            for item in all_items:
+                if not tree.exists(item):
+                    continue
                 quality = tree.set(item, 'status')
-                if quality and '4K' in quality:
-                    tree.reattach(item, '', 'end')
+                if quality and '4K' in str(quality).upper():
+                    try:
+                        tree.reattach(item, '', 'end')
+                    except Exception:
+                        pass
                 else:
-                    tree.detach(item)
+                    try:
+                        tree.detach(item)
+                    except Exception:
+                        pass
             
             self.ui_manager.update_status("🔍 Showing only 4K videos")
             
@@ -554,10 +565,15 @@ class EventHandlers:
             tree = self.ui_manager.get_element('video_tree')
             if not tree:
                 return
-            
-            # Show all videos
-            for item in tree.get_children():
-                tree.reattach(item, '', 'end')
+
+            # Reattach all known items (including previously detached)
+            all_items = list(self.tree_manager.video_data.keys()) if self.tree_manager else list(tree.get_children())
+            for item in all_items:
+                if tree.exists(item):
+                    try:
+                        tree.reattach(item, '', 'end')
+                    except Exception:
+                        pass
             
             self.ui_manager.update_status("📺 Showing all videos")
             

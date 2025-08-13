@@ -63,7 +63,7 @@ class Video4KChecker:
                 # Look for 4K indicators in the response (precise markers only)
                 formats_data = content
 
-                # Known itags and explicit quality markers for 2160p
+                # Known itags and explicit quality markers for 2160p (strict)
                 k4_indicators = [
                     'itag=313',  # VP9 4K
                     'itag=315',  # VP9 4K 60fps
@@ -72,7 +72,7 @@ class Video4KChecker:
                     'height=2160',
                     'quality=hd2160',
                     'quality_label=2160p',
-                    'qualityLabel\":\"2160p'
+                    '"qualityLabel":"2160p"'
                 ]
 
                 for indicator in k4_indicators:

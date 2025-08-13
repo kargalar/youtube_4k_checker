@@ -284,10 +284,15 @@ class TreeManager:
     def _map_status_to_quality(self, status):
         """Normalize various status strings into SD/HD/4K quality labels."""
         try:
-            s = str(status).lower()
-            if 'sd' in s:
+            s = str(status).lower().strip()
+            # Handle negatives first to avoid 'no 4k' matching as 4K
+            if 'no 4k' in s or '❌' in s:
+                return 'HD'
+            # Explicit SD labels
+            if s.startswith('📱') or s == 'sd':
                 return 'SD'
-            if '✅' in s or '4k' in s:
+            # Explicit 4K labels only
+            if '✅' in s or s == '4k' or '2160' in s:
                 return '4K'
             if 'pending' in s or '⏳' in s:
                 return '⏳ Pending'
@@ -295,9 +300,7 @@ class TreeManager:
                 return '⚠️ Timeout'
             if 'failed' in s:
                 return '⚠️ Failed'
-            # Default map for negatives
-            if 'no 4k' in s or '❌' in s:
-                return 'HD'
+            # Default: keep original if unknown
             return status
         except Exception:
             return status
