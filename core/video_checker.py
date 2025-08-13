@@ -59,33 +59,27 @@ class Video4KChecker:
             
             if response.status_code == 200:
                 content = response.text
-                
-                # Look for 4K indicators in the response
+
+                # Look for 4K indicators in the response (precise markers only)
                 formats_data = content
-                
-                # Check for 4K format codes and indicators
+
+                # Known itags and explicit quality markers for 2160p
                 k4_indicators = [
                     'itag=313',  # VP9 4K
                     'itag=315',  # VP9 4K 60fps
                     'itag=401',  # AV1 4K
                     'itag=337',  # VP9 4K
                     'height=2160',
-                    'quality=hd2160'
+                    'quality=hd2160',
+                    'quality_label=2160p',
+                    'qualityLabel\":\"2160p'
                 ]
-                
+
                 for indicator in k4_indicators:
                     if indicator in formats_data:
                         return True
-                
-                # More detailed format analysis
-                if 'adaptive_fmts' in content or 'url_encoded_fmt_stream_map' in content:
-                    # Parse format data for quality indicators
-                    quality_indicators = ['2160p', '4K', 'height":2160', '"4K"', '2160p60']
-                    
-                    for indicator in quality_indicators:
-                        if indicator in content:
-                            return True
-                
+
+                # No reliable 4K markers found
                 return False
                 
         except Exception as e:
@@ -104,18 +98,20 @@ class Video4KChecker:
             response = requests.get(url, headers=headers, timeout=5, verify=False)
             
             if response.status_code == 200:
-                content = response.text.lower()
-                
-                # Look for 4K quality indicators
-                k4_indicators = [
-                    '2160p', 'hd2160', '4k',
-                    'height":2160', '"4K"', '2160p60'
+                content = response.text
+
+                # Only rely on structured quality markers, not free text like titles/descriptions
+                precise_markers = [
+                    '"qualityLabel":"2160p"',
+                    '"quality":"hd2160"',
+                    '"height":2160',
+                    'quality=hd2160'
                 ]
-                
-                for indicator in k4_indicators:
-                    if indicator in content:
+
+                for marker in precise_markers:
+                    if marker in content:
                         return True
-                
+
                 return False
             
             return False

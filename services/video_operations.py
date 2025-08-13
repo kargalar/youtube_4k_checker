@@ -15,6 +15,8 @@ class VideoOperations:
         self.playlist_service = playlist_service
         self.theme_config = theme_config
         self.checked_videos = []
+        # Tree manager is set later by main_app after creation
+        self.tree_manager = None
     
     def copy_selected_url(self, tree):
         """Copy selected video URL to clipboard"""
@@ -29,7 +31,7 @@ class VideoOperations:
                 return
             
             item = selection[0]
-            url = tree.set(item, 'url')
+            url = self._get_video_meta(item).get('url')
             
             if url:
                 tree.clipboard_clear()
@@ -60,12 +62,14 @@ class VideoOperations:
             for item in tree.get_children():
                 checkbox_value = tree.set(item, 'checkbox')
                 if checkbox_value == '☑':
+                    # Merge tree visible fields with stored meta
+                    meta = self._get_video_meta(item)
                     video_data = {
                         'title': tree.set(item, 'title'),
-                        'url': tree.set(item, 'url'),
+                        'url': meta.get('url'),
                         'status': tree.set(item, 'status'),
-                        'id': tree.set(item, 'id'),
-                        'playlist_item_id': tree.set(item, 'playlist_item_id')
+                        'id': meta.get('id'),
+                        'playlist_item_id': meta.get('playlist_item_id')
                     }
                     checked_video_data.append(video_data)
             
@@ -408,7 +412,7 @@ class VideoOperations:
                 return
             
             item = selection[0]
-            url = tree.set(item, 'url')
+            url = self._get_video_meta(item).get('url')
             
             if url:
                 webbrowser.open(url)
@@ -454,3 +458,18 @@ class VideoOperations:
             
         except Exception as e:
             print(f"Error updating copy button: {e}")
+
+    def _get_video_meta(self, item):
+        """Helper to get full stored metadata for a tree item."""
+        try:
+            # Prefer the injected reference
+            tree_manager = getattr(self, 'tree_manager', None)
+            if tree_manager and hasattr(tree_manager, 'video_data'):
+                return tree_manager.video_data.get(item, {})
+            # Fallback to UIManager registry
+            tree_manager = getattr(self.ui_manager, '_ui_elements', {}).get('tree_manager_instance')
+            if tree_manager and hasattr(tree_manager, 'video_data'):
+                return tree_manager.video_data.get(item, {})
+        except Exception:
+            pass
+        return {}

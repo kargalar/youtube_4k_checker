@@ -45,6 +45,14 @@ class YouTube4KCheckerApp:
         # Initialize business services
         self.playlist_service = PlaylistService(self.youtube_service.youtube)
         self.video_operations = VideoOperations(self.ui_manager, self.playlist_service, self.theme_config)
+        # Wire references for cross-service helpers
+        try:
+            self.tree_manager.video_operations = self.video_operations
+            self.video_operations.tree_manager = self.tree_manager
+            # Expose tree_manager via UIManager for lookup helpers
+            self.ui_manager.register_element('tree_manager_instance', self.tree_manager)
+        except Exception:
+            pass
         
         # Initialize event handlers
         self.event_handlers = EventHandlers(
@@ -113,6 +121,11 @@ class YouTube4KCheckerApp:
         self.ui_manager.register_element('paste_button', self.playlist_widgets['paste_button'])
         self.ui_manager.register_element('load_button', self.playlist_widgets['load_button'])
         self.ui_manager.register_element('info_label', self.playlist_widgets['info_label'])
+        # Auto-check toggle
+        if 'auto_check_4k' in self.playlist_widgets:
+            self.ui_manager.register_element('auto_check_4k', self.playlist_widgets['auto_check_4k'])
+        if 'auto_check_4k_check' in self.playlist_widgets:
+            self.ui_manager.register_element('auto_check_4k_check', self.playlist_widgets['auto_check_4k_check'])
         
         # Filter widgets
         self.ui_manager.register_element('max_entry', self.filter_widgets['max_entry'])
@@ -213,6 +226,11 @@ class YouTube4KCheckerApp:
                 try:
                     if self.youtube_service.setup_youtube_api():
                         api_ready = True
+                        # Wire the playlist service to use the API-key YouTube client
+                        try:
+                            self.playlist_service.youtube_service = self.youtube_service.youtube
+                        except Exception:
+                            pass
                         break
                     else:
                         print(f"⚠️ API setup attempt {attempt + 1} returned False")

@@ -152,13 +152,28 @@ class WidgetFactory:
             style='Accent.TButton'
         )
         load_button.pack(side='right', padx=(0, 5))
+
+        # Options row
+        options_frame = tk.Frame(input_frame, bg=self.colors['bg_secondary'])
+        options_frame.pack(fill='x', pady=(2, 0))
+
+        auto_check_4k = tk.BooleanVar(value=True)
+        auto_check_4k_check = ttk.Checkbutton(
+            options_frame,
+            text="Auto check 4K on load",
+            variable=auto_check_4k,
+            style='Modern.TCheckbutton'
+        )
+        auto_check_4k_check.pack(side='left', padx=(5, 5))
         
         return {
             'frame': input_frame,
             'url_entry': url_entry,
             'paste_button': paste_button,
             'load_button': load_button,
-            'info_label': info_label
+            'info_label': info_label,
+            'auto_check_4k': auto_check_4k,
+            'auto_check_4k_check': auto_check_4k_check
         }
     
     def create_main_button_group(self, parent):

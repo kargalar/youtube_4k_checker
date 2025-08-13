@@ -16,11 +16,17 @@ load_dotenv()
 
 class YouTubeAPIService:
     """Handles YouTube API operations and authentication"""
-    
+
     def __init__(self):
-        self.youtube = None
+        self.youtube = None  # Active service (API key or OAuth)
         self.credentials = None
         self.api_key = os.getenv('YOUTUBE_API_KEY')
+        # Compatibility fields expected by main_app
+        self.client_secrets_file = 'client_secret.json'
+        self.token_file = 'token.pickle'
+        self.is_authenticated = False
+        self.authenticated_youtube = None  # Service built with OAuth credentials
+        self.last_auth_url = None
         
     def setup_youtube_api(self):
         """Initialize YouTube API service with retry mechanism"""
@@ -67,19 +73,23 @@ class YouTubeAPIService:
             return self.youtube
         
         # Try to load existing OAuth credentials
-        if os.path.exists('token.pickle'):
+        if os.path.exists(self.token_file):
             try:
-                with open('token.pickle', 'rb') as token:
+                with open(self.token_file, 'rb') as token:
                     self.credentials = pickle.load(token)
                 
                 if self.credentials and self.credentials.valid:
-                    self.youtube = build('youtube', 'v3', credentials=self.credentials)
+                    self.authenticated_youtube = build('youtube', 'v3', credentials=self.credentials)
+                    self.youtube = self.authenticated_youtube
+                    self.is_authenticated = True
                     return self.youtube
                 elif self.credentials and self.credentials.expired and self.credentials.refresh_token:
                     self.credentials.refresh(Request())
-                    with open('token.pickle', 'wb') as token:
+                    with open(self.token_file, 'wb') as token:
                         pickle.dump(self.credentials, token)
-                    self.youtube = build('youtube', 'v3', credentials=self.credentials)
+                    self.authenticated_youtube = build('youtube', 'v3', credentials=self.credentials)
+                    self.youtube = self.authenticated_youtube
+                    self.is_authenticated = True
                     return self.youtube
             except Exception as e:
                 print(f"OAuth credential error: {e}")
@@ -89,14 +99,14 @@ class YouTubeAPIService:
     def authenticate_oauth(self, callback=None):
         """Perform OAuth authentication"""
         try:
-            if not os.path.exists('client_secret.json'):
+            if not os.path.exists(self.client_secrets_file):
                 if callback:
                     callback("❌ client_secret.json not found! Please add your OAuth credentials.")
                 return False
             
             # OAuth 2.0 flow
             flow = Flow.from_client_secrets_file(
-                'client_secret.json',
+                self.client_secrets_file,
                 scopes=['https://www.googleapis.com/auth/youtube.readonly']
             )
             flow.redirect_uri = 'urn:ietf:wg:oauth:2.0:oob'
@@ -105,6 +115,7 @@ class YouTubeAPIService:
             
             if callback:
                 callback(f"🔐 Please visit this URL to authorize the application: {auth_url}")
+            self.last_auth_url = auth_url
             
             return auth_url
             
@@ -118,7 +129,7 @@ class YouTubeAPIService:
         """Complete OAuth flow with authorization code"""
         try:
             flow = Flow.from_client_secrets_file(
-                'client_secret.json',
+                self.client_secrets_file,
                 scopes=['https://www.googleapis.com/auth/youtube.readonly']
             )
             flow.redirect_uri = 'urn:ietf:wg:oauth:2.0:oob'
@@ -127,11 +138,13 @@ class YouTubeAPIService:
             self.credentials = flow.credentials
             
             # Save credentials
-            with open('token.pickle', 'wb') as token:
+            with open(self.token_file, 'wb') as token:
                 pickle.dump(self.credentials, token)
             
             # Build service
-            self.youtube = build('youtube', 'v3', credentials=self.credentials)
+            self.authenticated_youtube = build('youtube', 'v3', credentials=self.credentials)
+            self.youtube = self.authenticated_youtube
+            self.is_authenticated = True
             
             if callback:
                 callback("✅ Successfully authenticated! You can now access private playlists.")
@@ -143,6 +156,64 @@ class YouTubeAPIService:
             if callback:
                 callback(f"❌ {error_msg}")
             return False
+
+    # --- Compatibility helpers expected by main_app.py ---
+    def start_oauth_flow(self):
+        """Start OAuth: open browser with auth URL and print instructions."""
+        try:
+            url = self.authenticate_oauth()
+            if isinstance(url, str) and url:
+                try:
+                    import webbrowser
+                    webbrowser.open(url)
+                except Exception:
+                    pass
+                print("🔐 Opened browser for Google authorization. If it didn't open, use this URL:")
+                print(url)
+                print("After granting access, paste the authorization code back into the app.")
+                return url
+            else:
+                print("❌ Failed to start OAuth flow.")
+                return None
+        except Exception as e:
+            print(f"❌ OAuth flow error: {e}")
+            return None
+
+    def logout_oauth(self):
+        """Logout: remove stored token and reset OAuth service."""
+        try:
+            if os.path.exists(self.token_file):
+                try:
+                    os.remove(self.token_file)
+                except Exception:
+                    pass
+            self.credentials = None
+            self.is_authenticated = False
+            self.authenticated_youtube = None
+            # Keep API-key youtube if set via setup_youtube_api
+            print("🚪 Logged out from Google account.")
+        except Exception as e:
+            print(f"Logout error: {e}")
+
+    def check_existing_authentication(self):
+        """Check and load existing OAuth credentials if available."""
+        try:
+            if os.path.exists(self.token_file):
+                with open(self.token_file, 'rb') as token:
+                    self.credentials = pickle.load(token)
+                if self.credentials and (self.credentials.valid or self.credentials.refresh_token):
+                    if not self.credentials.valid:
+                        self.credentials.refresh(Request())
+                        with open(self.token_file, 'wb') as token:
+                            pickle.dump(self.credentials, token)
+                    self.authenticated_youtube = build('youtube', 'v3', credentials=self.credentials)
+                    self.youtube = self.authenticated_youtube
+                    self.is_authenticated = True
+                    print("✅ Loaded existing OAuth credentials.")
+                    return True
+        except Exception as e:
+            print(f"Existing auth check failed: {e}")
+        return False
     
     def extract_playlist_id(self, playlist_url):
         """Extract playlist ID from YouTube URL"""
@@ -202,6 +273,15 @@ class YouTubeAPIService:
         
         max_retries = 3
         
+        def _is_english_code(code: str) -> bool:
+            try:
+                if not code:
+                    return False
+                c = code.lower()
+                return c == 'en' or c.startswith('en-') or c.startswith('en_')
+            except Exception:
+                return False
+
         # Process in batches of 50 (API limit)
         for i in range(0, len(video_ids), 50):
             batch_ids = video_ids[i:i+50]
@@ -218,15 +298,25 @@ class YouTubeAPIService:
                     # Process response
                     for item in response['items']:
                         video_id = item['id']
+                        snippet = item.get('snippet', {})
+                        content_details = item.get('contentDetails', {})
+
+                        default_audio_lang = snippet.get('defaultAudioLanguage')
+                        default_lang = snippet.get('defaultLanguage')
+                        is_english = _is_english_code(default_audio_lang) or _is_english_code(default_lang)
                         video_details[video_id] = {
                             'id': video_id,
-                            'title': item['snippet']['title'],
+                            'title': snippet.get('title', ''),
                             'url': f"https://www.youtube.com/watch?v={video_id}",
-                            'definition': item['contentDetails'].get('definition', 'hd'),
-                            'dimension': item['contentDetails'].get('dimension', '2d'),
-                            'thumbnail': item['snippet']['thumbnails'].get('medium', {}).get('url', ''),
-                            'channel_title': item['snippet']['channelTitle'],
-                            'published_at': item['snippet']['publishedAt']
+                            'definition': content_details.get('definition', 'hd'),
+                            'dimension': content_details.get('dimension', '2d'),
+                            'thumbnail': snippet.get('thumbnails', {}).get('medium', {}).get('url', ''),
+                            'channel_title': snippet.get('channelTitle', ''),
+                            'published_at': snippet.get('publishedAt', ''),
+                            # Language signals from API
+                            'default_audio_language': default_audio_lang or '',
+                            'default_language': default_lang or '',
+                            'is_english': is_english
                         }
                     
                     print(f"✅ Batch {i//50 + 1}: Got details for {len(response['items'])} videos")
@@ -252,7 +342,10 @@ class YouTubeAPIService:
                                     'dimension': '2d',
                                     'thumbnail': '',
                                     'channel_title': 'Unknown',
-                                    'published_at': ''
+                                    'published_at': '',
+                                    'default_audio_language': '',
+                                    'default_language': '',
+                                    'is_english': False
                                 }
         
         return video_details

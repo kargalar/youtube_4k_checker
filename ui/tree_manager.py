@@ -13,6 +13,7 @@ class TreeManager:
         self.thumbnail_manager = thumbnail_manager
         self.theme_config = theme_config
         self.video_data = {}  # Store video data by item ID
+        self.video_id_index = {}  # Map video_id -> tree item_id
     
     def create_video_tree(self, parent):
         """Create and configure video list tree"""
@@ -116,18 +117,26 @@ class TreeManager:
                     formatted_date = published_date[:10]  # Fallback
             else:
                 formatted_date = ''
-            
+
+            # Prepare title (prefix with [EN] if detected via API)
+            raw_title = video_data.get('title', 'Unknown Title')
+            title_prefix = '[EN] ' if video_data.get('is_english') else ''
+            display_title_full = f"{title_prefix}{raw_title}".strip()
+            display_title = display_title_full[:50] + ('...' if len(display_title_full) > 50 else '')
+
             # Add to tree
-            item_id = tree.insert('', 'end',
+            item_id = tree.insert(
+                '',
+                'end',
                 image='',  # Thumbnail will be loaded later
                 values=(
                     '☐',  # checkbox
-                    video_data.get('title', 'Unknown Title')[:50] + ('...' if len(video_data.get('title', '')) > 50 else ''),
+                    display_title,
                     video_data.get('channel_title', 'Unknown Channel')[:25],
                     '⏳ Pending',  # status
                     video_data.get('definition', 'hd').upper(),
-                    formatted_date
-                )
+                    formatted_date,
+                ),
             )
             
             # Store video data
@@ -136,11 +145,12 @@ class TreeManager:
                 'tree_item_id': item_id,
                 'checked': False
             }
+            # Index by video id for quick status updates
+            vid = video_data.get('id')
+            if vid:
+                self.video_id_index[vid] = item_id
             
-            # Set additional data in tree
-            tree.set(item_id, 'id', video_data.get('id', ''))
-            tree.set(item_id, 'url', video_data.get('url', ''))
-            tree.set(item_id, 'playlist_item_id', video_data.get('playlist_item_id', ''))
+            # Additional metadata is stored in self.video_data and video_id_index
             
             # Load thumbnail asynchronously
             if video_data.get('thumbnail'):
@@ -171,7 +181,8 @@ class TreeManager:
                         if photo:
                             def update_tree():
                                 if tree.exists(item_id):
-                                    tree.set(item_id, '#0', image=photo)
+                                    # Use correct API to set image on tree item
+                                    tree.item(item_id, image=photo)
                                     # Keep reference to prevent garbage collection
                                     tree.image = getattr(tree, 'image', [])
                                     tree.image.append(photo)
@@ -245,7 +256,7 @@ class TreeManager:
             item = tree.identify_row(event.y)
             
             if item:
-                url = tree.set(item, 'url')
+                url = self.video_data.get(item, {}).get('url')
                 if url:
                     import webbrowser
                     webbrowser.open(url)
@@ -312,7 +323,7 @@ class TreeManager:
     def copy_item_url(self, tree, item):
         """Copy item URL to clipboard"""
         try:
-            url = tree.set(item, 'url')
+            url = self.video_data.get(item, {}).get('url')
             if url:
                 tree.clipboard_clear()
                 tree.clipboard_append(url)
@@ -335,6 +346,9 @@ class TreeManager:
             if result:
                 # Remove from stored data
                 if item in self.video_data:
+                    vid = self.video_data[item].get('id')
+                    if vid and vid in self.video_id_index:
+                        del self.video_id_index[vid]
                     del self.video_data[item]
                 
                 # Remove from tree
@@ -349,6 +363,7 @@ class TreeManager:
         try:
             # Clear stored data
             self.video_data.clear()
+            self.video_id_index.clear()
             
             # Clear tree
             for item in tree.get_children():
@@ -360,6 +375,13 @@ class TreeManager:
                 
         except Exception as e:
             print(f"Error clearing tree: {e}")
+
+    def get_item_id_by_video_id(self, video_id):
+        """Get tree item id by video id"""
+        try:
+            return self.video_id_index.get(video_id)
+        except Exception:
+            return None
     
     def get_checked_videos(self, tree):
         """Get all checked videos"""

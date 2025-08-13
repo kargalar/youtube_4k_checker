@@ -19,6 +19,7 @@ class EventHandlers:
         
         self.stop_requested = False
         self.is_processing = False
+        self.auto_check_after_load = False
     
     def on_url_change(self, event=None):
         """Handle URL entry changes"""
@@ -283,10 +284,13 @@ class EventHandlers:
                         for video in videos:
                             video_details[video['id']] = {'definition': 'hd'}  # Default
             
-            # Merge details with playlist info
+            # Merge details with playlist info and count English videos
+            english_count = 0
             for video in videos:
                 details = video_details.get(video['id'], {'definition': 'hd'})
                 video.update(details)
+                if video.get('is_english'):
+                    english_count += 1
             
             # Update UI
             def update_ui():
@@ -307,12 +311,17 @@ class EventHandlers:
                 if count_label:
                     count_label.config(text=f"{len(videos)} videos")
                 
-                self.ui_manager.update_status(f"✅ Loaded {len(videos)} videos from playlist")
+                extra = f" • EN: {english_count}" if english_count else ""
+                self.ui_manager.update_status(f"✅ Loaded {len(videos)} videos from playlist{extra}")
                 
-                # Auto-start 4K checking if enabled
-                auto_check = self.ui_manager.get_element('auto_check_4k')
-                if auto_check and getattr(auto_check, 'get', lambda: True)():
-                    self.ui_manager.root.after(1000, self.check_4k_quality)
+                # Auto-start 4K checking if enabled or requested by Check 4K
+                if self.auto_check_after_load:
+                    self.auto_check_after_load = False
+                    self.ui_manager.root.after(300, self.check_4k_quality)
+                else:
+                    auto_check = self.ui_manager.get_element('auto_check_4k')
+                    if auto_check and getattr(auto_check, 'get', lambda: True)():
+                        self.ui_manager.root.after(1000, self.check_4k_quality)
             
             self.ui_manager.safe_update(update_ui)
             
@@ -342,12 +351,20 @@ class EventHandlers:
             
             tree = self.ui_manager.get_element('video_tree')
             if not tree or len(tree.get_children()) == 0:
-                self.ui_manager.show_message_dialog(
-                    "No Videos",
-                    "Please load a playlist first.",
-                    'warning'
-                )
-                return
+                # Auto-load playlist if URL is present
+                url_entry = self.ui_manager.get_element('url_entry')
+                url = url_entry.get().strip() if url_entry else ''
+                if url and self.playlist_service.is_valid_playlist_url(url):
+                    self.auto_check_after_load = True
+                    self.load_playlist()
+                    return
+                else:
+                    self.ui_manager.show_message_dialog(
+                        "No Videos",
+                        "Enter a playlist URL, then press 'Check 4K' again to auto-load and scan.",
+                        'warning'
+                    )
+                    return
             
             # Collect video data
             video_details = []
@@ -394,12 +411,11 @@ class EventHandlers:
                     
                     # Find the tree item for this video
                     video_id = video.get('id')
-                    for item in tree.get_children():
-                        if tree.set(item, 'id') == video_id:
-                            def update():
-                                self.tree_manager.update_video_status(tree, item, status)
-                            self.ui_manager.safe_update(update)
-                            break
+                    item = self.tree_manager.get_item_id_by_video_id(video_id)
+                    if item and tree.exists(item):
+                        def update():
+                            self.tree_manager.update_video_status(tree, item, status)
+                        self.ui_manager.safe_update(update)
                             
                 except Exception as e:
                     print(f"Error in progress callback: {e}")
